@@ -2,6 +2,8 @@
 Define the API for geneparse.
 """
 
+import numpy as np
+
 
 class Variant(object):
     # Subclasses should declare a __slots__ containing only the additional
@@ -13,10 +15,7 @@ class Variant(object):
         self.chrom = Variant._encode_chr(chrom)
         self.pos = int(pos)
 
-        if alleles is None:
-            self.alleles = None
-        else:
-            self.alleles = tuple(sorted(str(s).upper() for s in alleles))
+        self.alleles = self._encode_alleles(alleles)
 
     @staticmethod
     def _encode_chr(chrom):
@@ -26,6 +25,12 @@ class Variant(object):
 
         return chrom
 
+    @staticmethod
+    def _encode_alleles(iterable):
+        if iterable is None:
+            return None
+        return tuple(sorted(str(s).upper() for s in iterable))
+
     # Hashing and comparison.
     def __hash__(self):
         # Two variants will have the same hash if they have the same
@@ -33,18 +38,39 @@ class Variant(object):
         # Is this the behaviour we want?
         return hash((self.chrom, self.pos, self.alleles))
 
+    @property
+    def alleles_set(self):
+        if self.alleles is None:
+            return None
+        return set(self.alleles)
+
+    def primitive_locus_eq(self, chrom, pos):
+        return self.chrom == chrom and self.pos == pos
+
     def locus_eq(self, other):
-        return (self.chrom == other.chrom and
-                self.pos == other.pos)
+        return self.primitive_locus_eq(other.chrom, other.pos)
 
-    def alleles_subset(self, other):
-        if self.alleles is None or other.alleles is None:
-            return False
+    def iterable_alleles_eq(self, alleles):
+        return self.alleles == self._encode_alleles(alleles)
 
-        return len(set(self.alleles) & set(other.alleles)) >= 1
+    def alleles_eq(self, other):
+        return self.iterable_alleles_eq(other.alleles)
 
     def __eq__(self, other):
-        return self.locus_eq(other) and self.alleles_subset(other)
+        """Tests for the equality between two variants.
+
+        If any variant has undefined alleles, we return the locus equality.
+
+        Else, we return True if at least two alleles are the same in both
+        variants.
+
+        """
+        locus_match = self.locus_eq(other)
+        if self.alleles is None or other.alleles is None:
+            return locus_match
+
+        overlap = len(self.alleles_set & other.alleles_set) >= 2
+        return locus_match and overlap
 
     def __repr__(self):
         return "<Variant chr{}:{}_{}>".format(self.chrom, self.pos,
@@ -66,9 +92,9 @@ class ImputedVariant(Variant):
 
 
 class Genotypes(object):
-    __slots__ = ("variant", "genotypes", "reference", "coded")
+    __slots__ = ("variant", "genotypes", "reference", "coded", "multiallelic")
 
-    def __init__(self, variant, genotypes, reference, coded):
+    def __init__(self, variant, genotypes, reference, coded, multiallelic):
         """Class holding information on a variant as well as a vector of
         genotypes.
 
@@ -81,17 +107,44 @@ class Genotypes(object):
 
         self.reference = str(reference).upper()
 
-        if self.reference not in variant.alleles:
+        self.multiallelic = multiallelic
+
+        if variant.alleles and (self.reference not in variant.alleles):
             raise ValueError(
-                "reference allele not in the known alleles for the variant."
+                "reference allele not in the known alleles for the variant "
+                "({} not in {}).".format(self.reference, variant.alleles)
             )
 
         self.coded = str(coded).upper()
 
-        if self.coded not in variant.alleles:
+        if variant.alleles and (self.coded not in variant.alleles):
             raise ValueError(
-                "coded allele not in the known alleles for the variant."
+                "coded allele not in the known alleles for the variant "
+                "({} not in {}).".format(self.coded, variant.alleles)
             )
+
+    def __eq__(self, other):
+        # If not the same locus, not equals.
+        if not self.variant.locus_eq(other.variant):
+            return False
+
+        # If same alleles, return the genotype comparison as-is.
+        alleles_eq = (self.reference == other.reference and
+                      self.coded == other.coded)
+        if alleles_eq:
+            return _np_eq(self.genotypes, other.genotypes)
+
+        # Check if it's the same alleles but they are flipped.
+        if self.reference == other.coded and self.coded == other.reference:
+            return _np_eq(self.genotypes, (2 - other.genotypes))
+
+        raise RuntimeError("Failed equality check between genotypes.")
+
+    def __repr__(self):
+        return (
+            "<Genotypes for {} Reference:{} Coded:{}, {}>"
+            "".format(self.variant, self.reference, self.coded, self.genotypes)
+        )
 
 
 class GenotypesReader(object):
@@ -174,6 +227,15 @@ class GenotypesReader(object):
     def get_number_variants(self):
         """Return the number of variants in the file."""
         raise NotImplementedError()
+
+
+def _np_eq(a, b):
+    nan_a = np.isnan(a)
+    nan_b = np.isnan(b)
+    if not np.all(nan_a == nan_b):
+        return False
+
+    return np.all(a[~nan_a] == b[~nan_b])
 
 
 # Exceptions.

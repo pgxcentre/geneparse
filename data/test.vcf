@@ -1,0 +1,14 @@
+##fileformat=VCFv4.2
+##fileDate=20170309
+##source=HandCrafted
+##phasing=partial
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">
+##FILTER=<ID=s50,Description="Less than 50% of samples have data">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE1	SAMPLE2	SAMPLE3	SAMPLE4	SAMPLE5
+1	46521559	rs785467	A	T	.	PASS	NS=5;AF=0.3	GT:GQ	0/0:1	0/1:1	1/1:1	0/0:1	0/0:1
+2	74601606	rs146589823	CAGG	C	.	PASS	NS=4;AF=.	GT:GQ	1/1:0.9	0/1:1.0	0/0:0.76	0/0:0.10	0/0:0.89
+22	16615065	rs9628434	G	A,T	.	PASS	NS=4;AF=0.02,0.00039	GT:GQ	1|2:0.9	0|2:0.78	.|.|.:.	0|1:0.67	0|0:0.13
+X	89932529	rs140543381	A	T	.	PASS	NS=5;AF=.	GT:GQ	0/1:1	1/1:1	0/0:.	0/0:1	0/1:1

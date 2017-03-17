@@ -1,1 +1,4 @@
 *.swp
+__pycache__
+geneparse/version.py
+*.egg-info

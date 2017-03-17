@@ -4,21 +4,24 @@ Plink file reader based on PyPlink.
 
 import logging
 
-import numpy as np
 from pyplink import PyPlink
+import numpy as np
 
-from .core import GenotypeReader, Variant, Genotypes
+from .core import GenotypesReader, Variant, Genotypes
 
 
 logger = logging.getLogger(__name__)
 
 
-CHROM_MAP = {str(c): c for c in range(1, 23)}
-CHROM_MAP["X"] = 23
-CHROM_MAP["Y"] = 24
+CHROM_STR_TO_INT = {str(c): c for c in range(1, 23)}
+CHROM_STR_TO_INT["X"] = 23
+CHROM_STR_TO_INT["Y"] = 24
 
 
-class PlinkReader(GenotypeReader):
+CHROM_INT_TO_STR = {v: k for k, v in CHROM_STR_TO_INT.items()}
+
+
+class PlinkReader(GenotypesReader):
     def __init__(self, prefix):
         """Binary plink file reader.
         Args:
@@ -28,6 +31,13 @@ class PlinkReader(GenotypeReader):
         self.bed = PyPlink(prefix)
         self.bim = self.bed.get_bim()
         self.fam = self.bed.get_fam()
+
+        # Identify all multi-allelics.
+        self.bim["multiallelic"] = False
+        self.bim.loc[
+            self.bim.duplicated(["chrom", "pos"], keep=False),
+            "multiallelic"
+        ] = True
 
         # We want to set the index for the FAM file
         try:
@@ -43,6 +53,9 @@ class PlinkReader(GenotypeReader):
                 for fid, iid in zip(self.fam.fid, self.fam.iid)
             ]
             self.fam = self.fam.set_index("fid_iid", verify_integrity=True)
+
+    def close(self):
+        self.bed.close()
 
     def get_variant_genotypes(self, variant):
         """Get the genotypes from a well formed variant instance.
@@ -60,95 +73,85 @@ class PlinkReader(GenotypeReader):
             sample family ID and individual ID (i.e. fid_iid).
 
         """
-        try:
-            idx = self.bim.loc[[variant.name], :]
+        # Find the variant in the bim.
+        plink_chrom = CHROM_STR_TO_INT[variant.chrom]
+        info = self.bim.loc[
+            (self.bim.chrom == plink_chrom) &
+            (self.bim.pos == variant.pos), :
+        ]
 
-            return [
+        if info.shape[0] == 0:
+            raise KeyError(variant)
 
-            ]
+        elif info.shape[0] == 1:
+            return self._get_biallelic_variant(variant, info)
 
-        except KeyError:
-            # Looking up variant in the bim.
-            if variant.chrom == "X":
-                idx = (
-                    self.bim["chrom"].isin({23, 25}) &
-                    (self.bim["pos"] == variant.pos)
-                )
+        else:
+            return self._get_multialleic_variant(variant, info)
 
-            else:
-                idx = (
-                    (self.bim["chrom"] == CHROM_MAP[variant.chrom]) &
-                    (self.bim["pos"] == variant.pos)
-                )
+    def _get_biallelic_variant(self, variant, info):
+        # From 1.3.2 onwards, PyPlink sets unique names.
+        info = info.iloc[0, :]
+        geno = self._normalize_missing(self.bed.get_geno_marker(info.name))
+        return [Genotypes(variant, geno, info.a2, info.a1, False)]
 
-            if not idx.any():
-                return []
+    def _get_multialleic_variant(self, variant, info):
+        # Check if alleles are specified.
+        out = []
+        if variant.alleles is None:
+            # If no alleles are specified, we return all the possible
+            # bi-allelic variats.
+            for name, row in info.iterrows():
+                geno = self.bed.get_geno_marker(name)
+                geno = self._normalize_missing(geno)
+                out.append(Genotypes(
+                    variant, geno, row.a2, row.a1, True
+                ))
 
-            return [
-                Genotypes(variant, self.bed.get_geno_marker(m), )
-                for m in idx[idx].index
-            ]
+        else:
+            # Find the requested alleles.
+            for name, row in info.iterrows():
+                row_alleles = set(Variant._encode_alleles((row.a1, row.a2)))
+                if row_alleles.issubset(variant.alleles_set):
+                    out.extend(self._get_biallelic_variant(
+                        variant,
+                        info.loc[[name], :]
+                    ))
+
+        return out
 
     def iter_genotypes(self):
         """Iterates on available markers.
 
         Returns:
-            MarkerGenotypes: A named tuple containing the dataframe with the
-            encoded genotypes for all samples (the index of the dataframe will
-            be the sample IDs), the minor and major alleles.
+            Genotypes instances.
+
         Note
         ====
             If the sample IDs are not unique, the index is changed to be the
             sample family ID and individual ID (i.e. fid_iid).
+
         """
         # Iterating over all markers
         for i, (_, genotypes) in enumerate(self.bed.iter_geno()):
             info = self.bim.iloc[i, :]
 
             yield Genotypes(
-                Variant(info.name, info.chrom, info.pos, [info.a1, info.a2]),
-                genotypes,
+                Variant(info.name, CHROM_INT_TO_STR[info.chrom],
+                        info.pos, [info.a1, info.a2]),
+                self._normalize_missing(genotypes),
                 reference=info.a2,
                 coded=info.a1,
+                multiallelic=info.multiallelic
             )
 
-    def iter_marker_info(self):
+    def iter_variants(self):
         """Iterate over marker information."""
         for idx, row in self.bim.iterrows():
             yield Variant(
-                row.name, row.chrom, row.pos, [row.a1, row.a2]
+                row.name, CHROM_INT_TO_STR[row.chrom], row.pos,
+                [row.a1, row.a2]
             )
-
-    def _create_genotypes(self, variant, genotypes):
-        """Creates the genotype dataframe from an binary Plink file.
-
-        Args:
-            variant (str): The name of the marker.
-            genotypes (numpy.ndarray): The genotypes.
-
-        Returns:
-            np.array: The genotypes.
-        """
-        # Getting and formatting the genotypes
-        additive = self.create_geno_df(
-            genotypes=genotypes,
-            samples=self.fam.index,
-        )
-
-        # Checking the format is fine
-        additive, minor, major = self.check_genotypes(
-            genotypes=additive,
-            minor=self.bim.loc[marker, "a1"],
-            major=self.bim.loc[marker, "a2"],
-        )
-
-        chrom, pos = self.bim.loc[marker, ["chrom", "pos"]].values
-        info = MarkerInfo(marker, chrom, pos, a1=minor, a2=major,
-                          minor=MarkerInfo.A1)
-
-        # Returning the value as ADDITIVE representation
-        if self._representation == Representation.ADDITIVE:
-            return MarkerGenotypes(info, additive)
 
     def get_number_samples(self):
         """Returns the number of samples.
@@ -163,3 +166,10 @@ class PlinkReader(GenotypeReader):
             int: The number of markers.
         """
         return self.bed.get_nb_markers()
+
+    @staticmethod
+    def _normalize_missing(g):
+        """Normalize a plink genotype vector."""
+        g = g.astype(float)
+        g[g == -1.0] = np.nan
+        return g

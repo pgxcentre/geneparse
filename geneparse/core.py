@@ -128,6 +128,11 @@ class Genotypes(object):
                 "({} not in {}).".format(self.coded, variant.alleles)
             )
 
+    def flip(self):
+        """Flips the reference and coded alleles of this instance."""
+        self.genotypes = 2 - self.genotypes
+        self.reference, self.coded = self.coded, self.reference
+
     def maf(self):
         nans = np.isnan(self.genotypes)
         maf = np.nansum(self.genotypes) / (2 * np.sum(~nans))

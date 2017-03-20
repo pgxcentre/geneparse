@@ -34,12 +34,14 @@ class Variant(object):
     def copy(self):
         return Variant(self.name, self.chrom, self.pos, self.alleles)
 
-    # Hashing and comparison.
     def __hash__(self):
         # Two variants will have the same hash if they have the same
         # chromosome and position and **exactly the same alleles**.
         # Is this the behaviour we want?
         return hash((self.chrom, self.pos, self.alleles))
+
+    def alleles_ambiguous(self):
+        return self.alleles == ("C", "G") or self.alleles == ("A", "T")
 
     @property
     def alleles_set(self):

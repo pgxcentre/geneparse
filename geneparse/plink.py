@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 CHROM_STR_TO_INT = {str(c): c for c in range(1, 23)}
 CHROM_STR_TO_INT["X"] = 23
 CHROM_STR_TO_INT["Y"] = 24
+CHROM_STR_TO_INT["XY"] = 25
+CHROM_STR_TO_INT["MT"] = 26
+CHROM_STR_TO_INT["Unknown"] = 0  # TODO What is plink chromosome 0?
 
 
 CHROM_INT_TO_STR = {v: k for k, v in CHROM_STR_TO_INT.items()}
@@ -89,9 +92,14 @@ class PlinkReader(GenotypesReader):
         else:
             return self._get_multialleic_variant(variant, info)
 
-    def _get_biallelic_variant(self, variant, info):
+    def _get_biallelic_variant(self, variant, info, _check_alleles=True):
         # From 1.3.2 onwards, PyPlink sets unique names.
         info = info.iloc[0, :]
+        variant_alleles = variant._encode_alleles([info.a2, info.a1])
+        if (_check_alleles and variant_alleles != variant.alleles):
+            # Variant with requested alleles is unavailable.
+            return []
+
         geno = self._normalize_missing(self.bed.get_geno_marker(info.name))
         return [Genotypes(variant, geno, info.a2, info.a1, False)]
 
@@ -115,7 +123,8 @@ class PlinkReader(GenotypesReader):
                 if row_alleles.issubset(variant.alleles_set):
                     out.extend(self._get_biallelic_variant(
                         variant,
-                        info.loc[[name], :]
+                        info.loc[[name], :],
+                        _check_alleles=False
                     ))
 
         return out
@@ -153,6 +162,25 @@ class PlinkReader(GenotypesReader):
                 [row.a1, row.a2]
             )
 
+    def get_variants_in_region(self, chrom, start, end):
+        """Iterate over variants in a region."""
+        bim = self.bim.loc[
+            (self.bim["chrom"] == CHROM_STR_TO_INT[chrom]) &
+            (start <= self.bim["pos"]) &
+            (self.bim["pos"] <= end)
+        ]
+        for i, g in enumerate(self.bed.iter_geno_marker(bim.index)):
+            info = bim.iloc[i, :]
+            name, geno = g
+            yield Genotypes(
+                Variant(info.name, CHROM_INT_TO_STR[info.chrom],
+                        info.pos, [info.a1, info.a2]),
+                self._normalize_missing(geno),
+                reference=info.a2,
+                coded=info.a1,
+                multiallelic=info.multiallelic
+            )
+
     def get_number_samples(self):
         """Returns the number of samples.
         Returns:
@@ -166,6 +194,9 @@ class PlinkReader(GenotypesReader):
             int: The number of markers.
         """
         return self.bed.get_nb_markers()
+
+    def get_samples(self):
+        return list(self.fam.index)
 
     @staticmethod
     def _normalize_missing(g):

@@ -31,6 +31,9 @@ class Variant(object):
             return None
         return tuple(sorted(str(s).upper() for s in iterable))
 
+    def copy(self):
+        return Variant(self.name, self.chrom, self.pos, self.alleles)
+
     # Hashing and comparison.
     def __hash__(self):
         # Two variants will have the same hash if they have the same
@@ -122,6 +125,14 @@ class Genotypes(object):
                 "coded allele not in the known alleles for the variant "
                 "({} not in {}).".format(self.coded, variant.alleles)
             )
+
+    def maf(self):
+        nans = np.isnan(self.genotypes)
+        maf = np.nansum(self.genotypes) / (2 * np.sum(~nans))
+        if maf > 0.5:
+            return 1 - maf
+        else:
+            return maf
 
     def __eq__(self, other):
         # If not the same locus, not equals.

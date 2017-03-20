@@ -13,6 +13,12 @@ class TestContainer(object):
             "GenotypesReader as '.reader_f'."
         )
 
+    def test_get_samples(self):
+        with self.reader_f() as f:
+            self.assertEqual(
+                truth.samples, f.get_samples()
+            )
+
     def test_iter_variants(self):
         """Test that all variants are iterated over"""
         # We expect the variants in the same order as the BIM.
@@ -51,6 +57,14 @@ class TestContainer(object):
         with self.reader_f() as f:
             g = f.get_variant_genotypes(v)[0]
             self.assertEqual(expected, g)
+
+    def test_get_na_biallelic_variant(self):
+        """Test asking for an unavailable biallelic variant."""
+        v = truth.variants["rs785467"].copy()
+        v.alleles = v._encode_alleles(["A", "G"])
+        with self.reader_f() as f:
+            g = f.get_variant_genotypes(v)
+            self.assertEqual([], g)
 
     def test_get_multiallelic_variant_by_locus(self):
         """Test getting a multiallelic variant using a locus."""
@@ -107,3 +121,19 @@ class TestContainer(object):
                 del expected[g.coded]
 
         self.assertEqual(len(expected), 0)
+
+    def test_get_variant_in_region(self):
+        """Test getting a variant by region."""
+        expected = truth.genotypes["rs785467"]
+        with self.reader_f() as f:
+            genotypes = list(f.get_variants_in_region("1", 46521558, 46521560))
+            self.assertEqual(len(genotypes), 1)
+
+            genotypes = genotypes[0]
+            self.assertEqual(expected, genotypes)
+
+    def test_get_variant_in_empty_region(self):
+        """Test getting an empty region."""
+        with self.reader_f() as f:
+            g = list(f.get_variants_in_region("1", 46521000, 46521005))
+            self.assertEqual([], g)

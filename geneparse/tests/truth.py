@@ -80,3 +80,5 @@ genotypes = {
         variants["rs140543381"], np.array([1, 2, 0, 0, 1]), "A", "T", False
     )
 }
+
+samples = ["SAMPLE{}".format(i) for i in range(1, 6)]

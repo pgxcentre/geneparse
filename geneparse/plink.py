@@ -84,7 +84,7 @@ class PlinkReader(GenotypesReader):
         ]
 
         if info.shape[0] == 0:
-            raise KeyError(variant)
+            return []
 
         elif info.shape[0] == 1:
             return self._get_biallelic_variant(variant, info)

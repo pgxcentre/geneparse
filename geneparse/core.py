@@ -134,12 +134,15 @@ class Genotypes(object):
         self.reference, self.coded = self.coded, self.reference
 
     def maf(self):
-        nans = np.isnan(self.genotypes)
-        maf = np.nansum(self.genotypes) / (2 * np.sum(~nans))
-        if maf > 0.5:
-            return 1 - maf
+        freq = self.coded_freq()
+        if freq > 0.5:
+            return 1 - freq
         else:
-            return maf
+            return freq
+
+    def coded_freq(self):
+        """Gets the frequency of the coded allele."""
+        return np.nanmean(self.genotypes) / 2
 
     def __eq__(self, other):
         # If not the same locus, not equals.

@@ -137,3 +137,18 @@ class TestContainer(object):
         with self.reader_f() as f:
             g = list(f.get_variants_in_region("1", 46521000, 46521005))
             self.assertEqual([], g)
+
+    def test_get_variant_by_name(self):
+        """Test getting a variant by name."""
+        with self.reader_f() as f:
+            g = f.get_variant_by_name("rs146589823")
+            self.assertEqual(len(g), 1)
+
+            g = g[0]
+            self.assertEqual(g, truth.genotypes["rs146589823"])
+
+    def test_get_variant_by_name_invalid(self):
+        """Test getting an invalid variant by name."""
+        with self.reader_f() as f:
+            g = f.get_variant_by_name("invalid_variant_name")
+            self.assertEqual(len(g), 0)

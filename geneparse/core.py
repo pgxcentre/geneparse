@@ -225,6 +225,19 @@ class GenotypesReader(object):
         """
         raise NotImplementedError()
 
+    def get_variant_by_name(self, name):
+        """Get the genotypes for a given variant (by name).
+
+        Args:
+            name (str): The name of the variant to retrieve the genotypes.
+
+        Returns:
+            list: A list of Genotypes. This is a list in order to keep the same
+            behaviour as the other functions.
+
+        """
+        raise NotImplementedError()
+
     def get_variants_in_region(self, chrom, start, end):
         """Get the variants in a region.
 

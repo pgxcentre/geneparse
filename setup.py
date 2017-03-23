@@ -65,6 +65,7 @@ def setup_package():
                           "pyplink >= 1.2.0", "setuptools >= 26.1.0",
                           "pysam >= 0.9.0"],
         packages=find_packages(),
+        package_data={"geneparse.tests": ["data/*"]},
         classifiers=["Development Status :: 1 - Planning",
                      "Intended Audience :: Science/Research",
                      "License :: Free for non-commercial use",

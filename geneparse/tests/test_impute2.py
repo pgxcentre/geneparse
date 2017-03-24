@@ -25,6 +25,7 @@ IMPUTE2_SAMPLE_FN = resource_filename(
 )
 
 
+# TODO: Add tests for actual dosage value (not just 100% probability)
 class TestImpute2(TestContainer, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -32,31 +33,3 @@ class TestImpute2(TestContainer, unittest.TestCase):
             filename=IMPUTE2_FN,
             sample_filename=IMPUTE2_SAMPLE_FN,
         )
-
-    @unittest.skip("Not implemented")
-    def test_get_multiallelic_variant_by_specific(self):
-        pass
-
-    @unittest.skip("Not implemented")
-    def test_multiallelic_identifier(self):
-        pass
-
-    @unittest.skip("Not implemented")
-    def test_get_na_biallelic_variant(self):
-        pass
-
-    @unittest.skip("Not implemented")
-    def test_get_multiallelic_variant_by_unavailable(self):
-        pass
-
-    @unittest.skip("Not implemented")
-    def test_get_multiallelic_variant_by_multiallelic(self):
-        pass
-
-    @unittest.skip("Not implemented")
-    def test_get_multiallelic_variant_by_locus(self):
-        pass
-
-    @unittest.skip("Not implemented")
-    def test_get_biallelic_variant(self):
-        pass

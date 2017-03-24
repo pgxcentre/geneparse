@@ -28,6 +28,7 @@ CHROM_STR_TO_INT["Unknown"] = 0  # TODO What is plink chromosome 0?
 CHROM_INT_TO_STR = {v: k for k, v in CHROM_STR_TO_INT.items()}
 
 CHROM_STR_ENCODE = {"23": "X", "24": "Y", "25": "XY", "26": "MT"}
+CHROM_STR_DECODE = {v: k for k, v in CHROM_STR_ENCODE.items()}
 
 
 class Impute2Reader(GenotypesReader):
@@ -38,6 +39,11 @@ class Impute2Reader(GenotypesReader):
             filename (str): The name of the IMPUTE2 file.
             sample_filename (str): The name of the SAMPLE file.
             probability_threshold (float): The probability threshold.
+
+        Note
+        ====
+            If the sample IDs are not unique, the index is changed to be the
+            sample family ID and individual ID (i.e. fid_iid).
 
         """
         # Reading the samples
@@ -68,8 +74,10 @@ class Impute2Reader(GenotypesReader):
         self._impute2_file = get_open_func(filename)(filename, "r")
 
         # If we have an index, we read it
+        self.has_index = path.isfile(filename + ".idx")
         self._impute2_index = None
-        if path.isfile(filename + ".idx"):
+        self._index_has_location = False
+        if self.has_index:
             self._impute2_index = get_index(
                 filename,
                 cols=[0, 1, 2],
@@ -122,18 +130,19 @@ class Impute2Reader(GenotypesReader):
                     "name", verify_integrity=True,
                 )
 
-        # Checking if we have chrom/pos in the index
-        self._index_has_location = (
-            "chrom" in self._impute2_index.columns and
-            "pos" in self._impute2_index.columns
-        )
-        if self._index_has_location:
-            # Setting the multiallelic values
-            self._impute2_index["multiallelic"] = False
-            self._impute2_index.loc[
-                self._impute2_index.duplicated(["chrom", "pos"], keep=False),
-                "multiallelic"
-            ] = True
+            # Checking if we have chrom/pos in the index
+            self._index_has_location = (
+                "chrom" in self._impute2_index.columns and
+                "pos" in self._impute2_index.columns
+            )
+            if self._index_has_location:
+                # Setting the multiallelic values
+                self._impute2_index["multiallelic"] = False
+                self._impute2_index.loc[
+                    self._impute2_index.duplicated(["chrom", "pos"],
+                                                   keep=False),
+                    "multiallelic"
+                ] = True
 
         # Saving the probability threshold
         self.prob_t = probability_threshold
@@ -164,48 +173,84 @@ class Impute2Reader(GenotypesReader):
             A list of Genotypes instance containing a pointer to the variant as
             well as a vector of encoded genotypes.
 
-        Note
-        ====
-            If the sample IDs are not unique, the index is changed to be the
-            sample family ID and individual ID (i.e. fid_iid).
-
         """
-        pass
+        if not self.has_index:
+            raise NotImplementedError("Not implemented when IMPUTE2 file is "
+                                      "not indexed (see genipe)")
+
+        # Find the variant in the index
+        impute2_chrom = CHROM_STR_TO_INT[variant.chrom]
+        variant_info = self._impute2_index[
+            (self._impute2_index.chrom == impute2_chrom) &
+            (self._impute2_index.pos == variant.pos)
+        ]
+
+        if variant_info.shape[0] == 0:
+            return []
+
+        elif variant_info.shape[0] == 1:
+            return self._get_biallelic_variant(variant, variant_info)
+
+        else:
+            return self._get_multialleic_variant(variant, variant_info)
 
     def _get_biallelic_variant(self, variant, info, _check_alleles=True):
-        # From 1.3.2 onwards, PyPlink sets unique names.
+        """Creates a bi-allelic variant."""
         info = info.iloc[0, :]
-        variant_alleles = variant._encode_alleles([info.a2, info.a1])
+        assert not info.multiallelic
+
+        # Seeking and parsing the file
+        self._impute2_file.seek(info.seek)
+        genotypes = self._parse_impute2_line(self._impute2_file.readline())
+
+        variant_alleles = variant._encode_alleles([
+            genotypes.reference, genotypes.coded,
+        ])
         if (_check_alleles and variant_alleles != variant.alleles):
             # Variant with requested alleles is unavailable.
             return []
 
-        geno = self._normalize_missing(self.bed.get_geno_marker(info.name))
-        return [Genotypes(variant, geno, info.a2, info.a1, False)]
+        return [genotypes]
 
     def _get_multialleic_variant(self, variant, info):
         # Check if alleles are specified.
         out = []
         if variant.alleles is None:
             # If no alleles are specified, we return all the possible
-            # bi-allelic variats.
+            # bi-allelic variants.
             for name, row in info.iterrows():
-                geno = self.bed.get_geno_marker(name)
-                geno = self._normalize_missing(geno)
-                out.append(Genotypes(
-                    variant, geno, row.a2, row.a1, True
-                ))
+                assert row.multiallelic
+
+                # Seeking and parsing the file
+                self._impute2_file.seek(row.seek)
+                genotypes = self._parse_impute2_line(
+                    self._impute2_file.readline(),
+                )
+
+                # fixing
+                self._fix_genotypes_object(genotypes, row)
+
+                out.append(genotypes)
 
         else:
             # Find the requested alleles.
             for name, row in info.iterrows():
-                row_alleles = set(Variant._encode_alleles((row.a1, row.a2)))
+                assert row.multiallelic
+
+                # Seeking and parsing the file
+                self._impute2_file.seek(row.seek)
+                genotypes = self._parse_impute2_line(
+                    self._impute2_file.readline(),
+                )
+
+                # Checking the alleles
+                row_alleles = set(Variant._encode_alleles(
+                    (genotypes.reference, genotypes.coded),
+                ))
                 if row_alleles.issubset(variant.alleles_set):
-                    out.extend(self._get_biallelic_variant(
-                        variant,
-                        info.loc[[name], :],
-                        _check_alleles=False
-                    ))
+                    # Fixing
+                    self._fix_genotypes_object(genotypes, row)
+                    out.append(genotypes)
 
         return out
 
@@ -215,22 +260,24 @@ class Impute2Reader(GenotypesReader):
         Returns:
             Genotypes instances.
 
-        Note
-        ====
-            If the sample IDs are not unique, the index is changed to be the
-            sample family ID and individual ID (i.e. fid_iid).
-
         """
         # Seeking at the beginning of the file
         self._impute2_file.seek(0)
 
         # Parsing each lines of the IMPUTE2 file
         for i, line in enumerate(self._impute2_file):
-            yield self._parse_impute2_line(line)
+            genotypes = self._parse_impute2_line(line)
+
+            variant_info = None
+            if self.has_index:
+                variant_info = self._impute2_index.iloc[i, :]
+            self._fix_genotypes_object(genotypes, variant_info)
+
+            yield genotypes
 
     def iter_variants(self):
         """Iterate over marker information."""
-        if self._impute2_index is None:
+        if not self.has_index:
             raise NotImplementedError("Not implemented when IMPUTE2 file is "
                                       "not indexed (see genipe)")
 
@@ -246,7 +293,7 @@ class Impute2Reader(GenotypesReader):
 
     def get_variants_in_region(self, chrom, start, end):
         """Iterate over variants in a region."""
-        if self._impute2_index is None:
+        if not self.has_index:
             raise NotImplementedError("Not implemented when IMPUTE2 file is "
                                       "not indexed (see genipe)")
 
@@ -284,7 +331,7 @@ class Impute2Reader(GenotypesReader):
 
         """
         # From 1.3.2 onwards, PyPlink sets unique names.
-        if self._impute2_index is None:
+        if not self.has_index:
             raise NotImplementedError("Not implemented when IMPUTE2 file is "
                                       "not indexed (see genipe)")
 
@@ -321,13 +368,13 @@ class Impute2Reader(GenotypesReader):
     def _fix_genotypes_object(self, genotypes, variant_info):
         """Fixes a genotypes object (variant name, multi-allelic value."""
         # Checking the name (if there were duplications)
-        if variant_info.name != genotypes.variant.name:
+        if self.has_index and variant_info.name != genotypes.variant.name:
             if not variant_info.name.startswith(genotypes.variant.name):
                 raise ValueError("Index file not synced with IMPUTE2 file")
             genotypes.variant.name = variant_info.name
 
         # Trying to set multi-allelic information
-        if self._index_has_location:
+        if self.has_index and self._index_has_location:
             # Location was in the index, so we can automatically set the
             # multi-allelic state of the genotypes
             genotypes.multiallelic = variant_info.multiallelic
@@ -353,7 +400,7 @@ class Impute2Reader(GenotypesReader):
             int: The number of markers.
 
         """
-        if self._impute2_index is not None:
+        if self.has_index:
             return self._impute2_index.shape[0]
         else:
             return None
@@ -369,6 +416,10 @@ class Impute2Reader(GenotypesReader):
 
         Returns:
             Genotypes: The genotype in dosage format.
+
+        Warning
+        =======
+            By default, the genotypes object has multiallelic set to False.
 
         """
         # Splitting

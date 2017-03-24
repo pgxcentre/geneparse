@@ -203,8 +203,19 @@ class PlinkReader(GenotypesReader):
             geno, i = self.bed.get_geno_marker(name, return_index=True)
 
         except ValueError:
-            # The variant is not in the BIM file, so we return an empty list
-            return []
+            if name in self.bed.get_duplicated_markers():
+                # The variant is a duplicated one, so we go through all the
+                # variants with the same name and the :dupx suffix
+                return [
+                    self.get_variant_by_name(dup_name).pop()
+                    for dup_name in self.bed.get_duplicated_markers()[name]
+                ]
+
+            else:
+                # The variant is not in the BIM file, so we return an empty
+                # list
+                logger.warning("Variant {} was not found".format(name))
+                return []
 
         else:
             info = self.bim.iloc[i, :]

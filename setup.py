@@ -62,7 +62,7 @@ def setup_package():
         test_suite="geneparse.tests.test_suite",
         zip_safe=False,
         install_requires=["numpy >= 1.11.0", "pandas >= 0.18.0",
-                          "pyplink >= 1.2.0", "setuptools >= 26.1.0",
+                          "pyplink >= 1.3.4", "setuptools >= 26.1.0",
                           "pysam >= 0.9.0"],
         packages=find_packages(),
         package_data={"geneparse.tests": ["data/*"]},

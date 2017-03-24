@@ -152,3 +152,15 @@ class TestContainer(object):
         with self.reader_f() as f:
             g = f.get_variant_by_name("invalid_variant_name")
             self.assertEqual(len(g), 0)
+
+    def test_get_multiallelic_variant_by_name(self):
+        """Find a biallelic variant at a multiallelic locus by name."""
+        # Inverted, because inverted in the BIM file
+        expected_1 = truth.genotypes["subal_3_rs9628434"]
+        expected_2 = truth.genotypes["subal_2_rs9628434"]
+        with self.reader_f() as f:
+            r = f.get_variant_by_name("rs9628434")
+            self.assertEqual(len(r), 2)
+
+            for g, e in zip(r, (expected_1, expected_2)):
+                self.assertEqual(e, g)

@@ -382,7 +382,8 @@ class Impute2Reader(GenotypesReader):
         else:
             # Location was not in the index, so we check one marker before and
             # after the one we found
-            pass
+            logger.warning("Multiallelic variants are not detected on "
+                           "unindexed files.")
 
     def get_number_samples(self):
         """Returns the number of samples.

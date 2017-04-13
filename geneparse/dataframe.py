@@ -29,6 +29,26 @@ class DataFrameReader(GenotypesReader):
         self.df = dataframe
         self.map_info = map_info
 
+    def iter_genotypes(self):
+        """Iterates on available markers.
+
+        Returns:
+            Genotypes instances.
+
+        """
+        # Parsing each column of the dataframe
+        for variant in self.df.columns:
+            genotypes = self.df.loc[:, variant].values
+            info = self.map_info.loc[variant, :]
+
+            yield Genotypes(
+                Variant(info.index, info.chrom, info.pos, [info.a1, info.a2]),
+                genotypes,
+                reference=info.a2,
+                coded=info.a1,
+                multiallelic=False,
+            )
+
     def get_variant_by_name(self, name):
         """Get the genotypes for a given variant (by name).
 

@@ -21,13 +21,13 @@ class TestDataFrame(TestContainer, unittest.TestCase):
         genotypes = pd.DataFrame(
             {"rs785467": [0, 1, 2, 0, 0],
              "rs146589823": [2, 1, 0, 0, 0],
-             "rs9628434": [1, 9, np.nan, 1, 0],
+             "rs9628434": [1, 0, np.nan, 1, 0],
              "rs140543381": [1, 2, 0, 0, 1]},
             index=["SAMPLE{}".format(_+1) for _ in range(5)],
         )
 
         mapping_info = pd.DataFrame(
-            {"chrom": ["1", "2", "22", "23"],
+            {"chrom": ["1", "2", "22", "X"],
              "pos": [46521559, 74601606, 16615065, 89932529],
              "a1": ["T", "C", "A", "T"],
              "a2": ["A", "CAGG", "G", "A"]},
@@ -42,11 +42,6 @@ class TestDataFrame(TestContainer, unittest.TestCase):
     @unittest.skip("Not implemented")
     def test_iter_variants(self):
         """Test that all variants are iterated over"""
-        pass
-
-    @unittest.skip("Not implemented")
-    def test_iter_genotypes(self):
-        """Test that the genotypes are read correctly"""
         pass
 
     @unittest.skip("Not implemented")

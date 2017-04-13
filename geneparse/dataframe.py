@@ -40,8 +40,6 @@ class DataFrameReader(GenotypesReader):
         for variant in self.df.columns:
             genotypes = self.df.loc[:, variant].values
             info = self.map_info.loc[variant, :]
-            print("\n%%%%%%%%%%%%%%%%")
-            print(info)
 
             yield Genotypes(
                 Variant(info.name, info.chrom, info.pos, [info.a1, info.a2]),

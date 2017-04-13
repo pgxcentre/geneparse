@@ -179,7 +179,7 @@ class GenotypesReader(object):
     def __exit__(self, *args):
         self.close()
 
-    def close():
+    def close(self):
         pass
 
     def __repr__(self):

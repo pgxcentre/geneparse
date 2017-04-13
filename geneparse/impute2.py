@@ -25,8 +25,6 @@ CHROM_STR_TO_INT["MT"] = 26
 CHROM_STR_TO_INT["Unknown"] = 0  # TODO What is plink chromosome 0?
 
 
-CHROM_INT_TO_STR = {v: k for k, v in CHROM_STR_TO_INT.items()}
-
 CHROM_STR_ENCODE = {"23": "X", "24": "Y", "25": "XY", "26": "MT"}
 CHROM_STR_DECODE = {v: k for k, v in CHROM_STR_ENCODE.items()}
 

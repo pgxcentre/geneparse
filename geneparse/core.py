@@ -224,7 +224,7 @@ class SplitChromosomeReader(object):
 
     def get_variant_by_name(self, name):
         out = []
-        for chrom, reader in self.chrom_to_reader:
+        for chrom, reader in self.chrom_to_reader.items():
             out.extend(reader.get_variant_by_name(name))
 
     def get_variants_in_region(self, chrom, start, end):

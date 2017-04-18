@@ -5,6 +5,9 @@ from . import plink, impute2
 from .core import Genotypes, Variant, ImputedVariant, SplitChromosomeReader
 
 
+# TODO:
+# 1. Warn and show last exception if no reader correctly initialized.
+# 2. Could also make it async to load faster.
 class _SplitChromosomeReaderFactory(object):
     def __init__(self, reader_class):
         self.reader_class = reader_class

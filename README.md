@@ -1,3 +1,6 @@
+[![PyPI version](https://badge.fury.io/py/geneparse.svg)](http://badge.fury.io/py/geneparse)
+
+
 # geneparse - Module to parse genetics data file
 
 `geneparse` is a module that helps developers to parse multiple genetics file

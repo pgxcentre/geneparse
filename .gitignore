@@ -5,3 +5,7 @@ geneparse/version.py
 
 .coverage
 htmlcov
+test
+
+build
+dist

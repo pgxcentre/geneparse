@@ -13,6 +13,7 @@ higher are supported) with the following modules:
 2. [pandas](http://pandas.pydata.org/) version 0.14.1 or latest
 3. [pyplink](https://github.com/lemieuxl/pyplink) version 1.3.4 or latest
 4. [pysam](https://github.com/pysam-developers/pysam) version 0.9.0 or latest
+5. [biopython](https://github.com/biopython/biopython) version 1.68 or latest
 
 The tool has been tested on *Linux* only, but should work on *MacOS* operating
 systems as well.

@@ -66,7 +66,7 @@ def setup_package():
                           "pysam >= 0.9.0"],
         packages=find_packages(),
         package_data={"geneparse.tests": ["data/*", "data/*/*"]},
-        classifiers=["Development Status :: 1 - Planning",
+        classifiers=["Development Status :: 4 - Beta",
                      "Intended Audience :: Science/Research",
                      "License :: Free for non-commercial use",
                      "Operating System :: Unix",

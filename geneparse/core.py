@@ -134,12 +134,15 @@ class Genotypes(object):
         self.reference, self.coded = self.coded, self.reference
 
     def maf(self):
-        nans = np.isnan(self.genotypes)
-        maf = np.nansum(self.genotypes) / (2 * np.sum(~nans))
-        if maf > 0.5:
-            return 1 - maf
+        freq = self.coded_freq()
+        if freq > 0.5:
+            return 1 - freq
         else:
-            return maf
+            return freq
+
+    def coded_freq(self):
+        """Gets the frequency of the coded allele."""
+        return np.nanmean(self.genotypes) / 2
 
     def __eq__(self, other):
         # If not the same locus, not equals.
@@ -165,6 +168,83 @@ class Genotypes(object):
         )
 
 
+class SplitChromosomeReader(object):
+    def __init__(self, chrom_to_reader):
+        """Reader to handle genotype access using files split by chromosome.
+
+        A dict mapping chromosomes to instances of GenotypesReader should be
+        passed.
+
+        """
+        self.chrom_to_reader = chrom_to_reader
+
+        samples = None
+        self.n_vars = 0
+        for chrom, reader in self.chrom_to_reader.items():
+            # Keep track of the total number of variants.
+            self.n_vars += reader.get_number_variants()
+
+            # Check that the sample order is the same.
+            cur_samples = reader.get_samples()
+            if samples is None:
+                samples = cur_samples
+            else:
+                if samples != cur_samples:
+                    raise ValueError(
+                        "Not all sub-readers have the same sample order."
+                    )
+                samples = cur_samples
+
+        self.samples = samples
+
+    @staticmethod
+    def _unknown_chrom_message(chrom):
+        return (
+            "Unable to find a reader instance for chromosome '{}'."
+            "".format(chrom)
+        )
+
+    def iter_variants(self):
+        for chrom, reader in self.chrom_to_reader.items():
+            for v in reader.iter_variants():
+                yield v
+
+    def iter_genotypes(self):
+        for chrom, reader in self.chrom_to_reader.items():
+            for g in reader.iter_genotypes():
+                yield g
+
+    def get_variant_genotypes(self, variant):
+        try:
+            return self.chrom_to_reader[
+                variant.chrom
+            ].get_variant_genotypes(variant)
+        except KeyError:
+            raise ValueError(self._unknown_chrom_message(variant.chrom))
+
+    def get_variant_by_name(self, name):
+        out = []
+        for chrom, reader in self.chrom_to_reader.items():
+            out.extend(reader.get_variant_by_name(name))
+
+    def get_variants_in_region(self, chrom, start, end):
+        try:
+            return self.chrom_to_reader[
+                chrom
+            ].get_variants_in_region(chrom, start, end)
+        except KeyError:
+            raise ValueError(self._unknown_chrom_message(chrom))
+
+    def get_samples(self):
+        return self.samples
+
+    def get_number_samples(self):
+        return len(self.samples)
+
+    def get_number_variants(self):
+        return self.n_vars
+
+
 class GenotypesReader(object):
     def __init__(self):
         """Abstract class to read genotypes data."""
@@ -176,7 +256,7 @@ class GenotypesReader(object):
     def __exit__(self, *args):
         self.close()
 
-    def close():
+    def close(self):
         pass
 
     def __repr__(self):
@@ -218,6 +298,19 @@ class GenotypesReader(object):
         Returns:
             list: A list of Genotypes. This is a list because for
             multi-allelics the representation needs multiple entries.
+
+        """
+        raise NotImplementedError()
+
+    def get_variant_by_name(self, name):
+        """Get the genotypes for a given variant (by name).
+
+        Args:
+            name (str): The name of the variant to retrieve the genotypes.
+
+        Returns:
+            list: A list of Genotypes. This is a list in order to keep the same
+            behaviour as the other functions.
 
         """
         raise NotImplementedError()

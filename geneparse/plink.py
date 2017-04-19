@@ -181,6 +181,53 @@ class PlinkReader(GenotypesReader):
                 multiallelic=info.multiallelic
             )
 
+    def get_variant_by_name(self, name):
+        """Get the genotype of a marker using it's name.
+
+        Args:
+            name (str): The name of the marker.
+
+        Returns:
+            list: A list of Genotypes (only one for PyPlink, see note below).
+
+        Note
+        ====
+            From PyPlink version 1.3.2 and onwards, each name is unique in the
+            dataset. Hence, we can use the 'get_geno_marker' function and be
+            sure only one variant is returned.
+
+        """
+        # From 1.3.2 onwards, PyPlink sets unique names.
+        # Getting the genotypes
+        try:
+            geno, i = self.bed.get_geno_marker(name, return_index=True)
+
+        except ValueError:
+            if name in self.bed.get_duplicated_markers():
+                # The variant is a duplicated one, so we go through all the
+                # variants with the same name and the :dupx suffix
+                return [
+                    self.get_variant_by_name(dup_name).pop()
+                    for dup_name in self.bed.get_duplicated_markers()[name]
+                ]
+
+            else:
+                # The variant is not in the BIM file, so we return an empty
+                # list
+                logger.warning("Variant {} was not found".format(name))
+                return []
+
+        else:
+            info = self.bim.iloc[i, :]
+            return [Genotypes(
+                Variant(info.name, CHROM_INT_TO_STR[info.chrom], info.pos,
+                        [info.a1, info.a2]),
+                self._normalize_missing(geno),
+                reference=info.a2,
+                coded=info.a1,
+                multiallelic=info.multiallelic,
+            )]
+
     def get_number_samples(self):
         """Returns the number of samples.
         Returns:

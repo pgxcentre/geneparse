@@ -6,6 +6,8 @@ import os
 import unittest
 import logging
 
+from pkg_resources import resource_filename
+
 from .generic_tests import TestContainer
 from .. import plink
 
@@ -13,10 +15,10 @@ from .. import plink
 logging.disable(logging.CRITICAL)
 
 
-# TODO use the proper mechanism to get the file.
-PLINK_PREFIX = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), "..", "..", "data", "plink", "btest"
-))
+PLINK_PREFIX = resource_filename(
+    __name__,
+    os.path.join("data", "plink", "btest"),
+)
 
 
 class TestPlink(TestContainer, unittest.TestCase):

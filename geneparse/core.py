@@ -29,6 +29,13 @@ Define the API for geneparse.
 
 import numpy as np
 
+from .exceptions import InvalidChromosome
+
+
+VALID_CHROMOSOMES = set(
+    [str(i + 1) for i in range(22)] + ["X", "Y", "XY", "MT"]
+)
+
 
 class Variant(object):
     # Subclasses should declare a __slots__ containing only the additional
@@ -47,6 +54,8 @@ class Variant(object):
         chrom = str(chrom).upper()
         if chrom.startswith("CHR"):
             chrom = chrom[3:]
+        if chrom not in VALID_CHROMOSOMES:
+            raise InvalidChromosome(chrom)
 
         return chrom
 

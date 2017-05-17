@@ -1,0 +1,27 @@
+language: python
+
+python:
+  - "3.4"
+  - "3.5"
+  - "3.6"
+
+before_install:
+  - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH=$HOME/miniconda/bin:$PATH
+  - hash -r"
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q --all
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
+  - source activate test-environment
+  - conda update -q --all
+  - conda info -a
+  - python --version
+
+install:
+  - conda install -q cython numpy pandas biopython
+  - conda install -q pyplink -c http://statgen.org/wp-content/uploads/Softwares/pyplink
+  - pip install --no-deps cyvcf2
+  - conda list
+
+script: python setup.py test

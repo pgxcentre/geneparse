@@ -82,7 +82,6 @@ variants = {
     "rs140543381": Variant("rs140543381", "X", 89932529, ["A", "T"]),
     "locus_rs140543381": Variant("rs140543381", "X", 89932529, None),
     "uk_rs140543381": Variant(None, "X", 89932529, ["A", "T"]),
-    "codechr_rs140543381": Variant("rs140543381", 23, 89932529, ["A", "T"]),
 }
 variant_to_key = {v: strip_key(k) for k, v in variants.items()}
 

@@ -55,6 +55,7 @@ class Chromosome(object):
             return False
         return self.name == other_name
 
+
 VALID_CHROMOSOMES = {k: Chromosome(k) for k in VALID_CHROMOSOMES}
 UNKNOWN_CHROMOSOME = Chromosome("?")
 

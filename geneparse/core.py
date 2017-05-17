@@ -50,9 +50,11 @@ class Chromosome(object):
         return hash(self.name)
 
     def __eq__(self, other):
-        if self.name == "?" or other.name == "?":
+        other_name = getattr(other, "name", str(other))
+        if self.name == "?" or other_name == "?":
             return False
-        return self.name == other.name
+        return self.name == other_name
+
 
 VALID_CHROMOSOMES = {k: Chromosome(k) for k in VALID_CHROMOSOMES}
 UNKNOWN_CHROMOSOME = Chromosome("?")

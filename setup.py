@@ -14,7 +14,7 @@ from setuptools import setup, find_packages
 
 
 MAJOR = 0
-MINOR = 2
+MINOR = 3
 MICRO = 0
 VERSION = "{0}.{1}.{2}".format(MAJOR, MINOR, MICRO)
 
@@ -61,9 +61,9 @@ def setup_package():
         license="MIT",
         test_suite="geneparse.tests.test_suite",
         zip_safe=False,
-        install_requires=["numpy >= 1.12.0", "pandas >= 0.19.0",
+        install_requires=["numpy >= 1.11.0", "pandas >= 0.19.0",
                           "pyplink >= 1.3.4", "setuptools >= 26.1.0",
-                          "pysam >= 0.9.0", "biopython >= 1.68"],
+                          "cyvcf2 >= 0.7.4", "biopython >= 1.68"],
         packages=find_packages(),
         package_data={"geneparse.tests": ["data/*", "data/*/*"]},
         classifiers=["Development Status :: 4 - Beta",

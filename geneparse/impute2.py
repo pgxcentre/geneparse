@@ -36,7 +36,8 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 
-from .core import GenotypesReader, Variant, Genotypes
+from .core import (GenotypesReader, Variant, Genotypes, VALID_CHROMOSOMES,
+                   UNKNOWN_CHROMOSOME)
 
 
 logger = logging.getLogger(__name__)
@@ -47,11 +48,15 @@ CHROM_STR_TO_INT["X"] = 23
 CHROM_STR_TO_INT["Y"] = 24
 CHROM_STR_TO_INT["XY"] = 25
 CHROM_STR_TO_INT["MT"] = 26
-CHROM_STR_TO_INT["Unknown"] = 0  # TODO What is plink chromosome 0?
+CHROM_STR_TO_INT["Unknown"] = 0
 
 
-CHROM_STR_ENCODE = {"23": "X", "24": "Y", "25": "XY", "26": "MT"}
-CHROM_STR_DECODE = {v: k for k, v in CHROM_STR_ENCODE.items()}
+CHROM_STR_ENCODE = {
+    "23": VALID_CHROMOSOMES["X"],
+    "24": VALID_CHROMOSOMES["Y"],
+    "25": VALID_CHROMOSOMES["XY"],
+    "26": VALID_CHROMOSOMES["MT"]
+}
 
 
 class Impute2Reader(GenotypesReader):
@@ -202,7 +207,13 @@ class Impute2Reader(GenotypesReader):
                                       "not indexed (see genipe)")
 
         # Find the variant in the index
-        impute2_chrom = CHROM_STR_TO_INT[variant.chrom]
+        try:
+            impute2_chrom = CHROM_STR_TO_INT[variant.chrom.name]
+        except KeyError:
+            raise ValueError(
+                "Invalid chromosome ('{}') for IMPUTE2.".format(variant.chrom)
+            )
+
         variant_info = self._impute2_index[
             (self._impute2_index.chrom == impute2_chrom) &
             (self._impute2_index.pos == variant.pos)

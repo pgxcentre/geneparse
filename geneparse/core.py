@@ -37,6 +37,27 @@ VALID_CHROMOSOMES = set(
 )
 
 
+class Chromosome(object):
+    __slots__ = ("name")
+
+    def __init__(self, name):
+        self.name = str(name)
+
+    def __repr__(self):
+        return "chr{}".format(self.name)
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        if self.name == "?" or other.name == "?":
+            return False
+        return self.name == other.name
+
+VALID_CHROMOSOMES = {k: Chromosome(k) for k in VALID_CHROMOSOMES}
+UNKNOWN_CHROMOSOME = Chromosome("?")
+
+
 class Variant(object):
     # Subclasses should declare a __slots__ containing only the additional
     # slots.
@@ -51,13 +72,25 @@ class Variant(object):
 
     @staticmethod
     def _encode_chr(chrom):
+        # Accept instances of Chromosome as is (useful for contigs or non
+        # default chromosomes).
+        if isinstance(chrom, Chromosome):
+            return chrom
+
+        # We have a special value for unknown chromosome.
+        elif chrom is None:
+            return UNKNOWN_CHROMOSOME
+
+        # See if the Chromosome is already known.
         chrom = str(chrom).upper()
+
         if chrom.startswith("CHR"):
             chrom = chrom[3:]
+
         if chrom not in VALID_CHROMOSOMES:
             raise InvalidChromosome(chrom)
 
-        return chrom
+        return VALID_CHROMOSOMES[chrom]
 
     @staticmethod
     def _encode_alleles(iterable):
@@ -112,8 +145,8 @@ class Variant(object):
         return locus_match and overlap
 
     def __repr__(self):
-        return "<Variant chr{}:{}_{}>".format(self.chrom, self.pos,
-                                              self.alleles)
+        return "<Variant {}:{}_{}>".format(self.chrom, self.pos,
+                                           self.alleles)
 
 
 class ImputedVariant(Variant):
@@ -260,6 +293,7 @@ class SplitChromosomeReader(object):
         out = []
         for chrom, reader in self.chrom_to_reader.items():
             out.extend(reader.get_variant_by_name(name))
+        return out
 
     def get_variants_in_region(self, chrom, start, end):
         try:

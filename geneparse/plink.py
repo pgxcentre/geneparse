@@ -102,7 +102,13 @@ class PlinkReader(GenotypesReader):
 
         """
         # Find the variant in the bim.
-        plink_chrom = CHROM_STR_TO_INT[variant.chrom]
+        try:
+            plink_chrom = CHROM_STR_TO_INT[variant.chrom.name]
+        except KeyError:
+            raise ValueError(
+                "Invalid chromosome ('{}') for Plink.".format(variant.chrom)
+            )
+
         info = self.bim.loc[
             (self.bim.chrom == plink_chrom) &
             (self.bim.pos == variant.pos), :

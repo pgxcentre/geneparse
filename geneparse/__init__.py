@@ -28,7 +28,8 @@
 import re
 
 from . import plink, impute2
-from .core import Genotypes, Variant, ImputedVariant, SplitChromosomeReader
+from .core import (Genotypes, Variant, ImputedVariant, SplitChromosomeReader,
+                   Chromosome)
 
 try:
     from .version import geneparse_version as __version__

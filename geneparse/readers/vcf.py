@@ -27,7 +27,7 @@ Reader for VCF files.
 # THE SOFTWARE.
 
 
-from .core import Variant, ImputedVariant, Genotypes, GenotypesReader
+from ..core import Variant, ImputedVariant, Genotypes, GenotypesReader
 
 from cyvcf2 import VCF
 import numpy as np

@@ -32,7 +32,7 @@ import logging
 from pyplink import PyPlink
 import numpy as np
 
-from .core import GenotypesReader, Variant, Genotypes
+from ..core import GenotypesReader, Variant, Genotypes
 
 
 logger = logging.getLogger(__name__)

@@ -36,8 +36,7 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 
-from .core import (GenotypesReader, Variant, Genotypes, VALID_CHROMOSOMES,
-                   UNKNOWN_CHROMOSOME)
+from ..core import GenotypesReader, Variant, Genotypes, VALID_CHROMOSOMES
 
 
 logger = logging.getLogger(__name__)

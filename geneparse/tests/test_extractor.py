@@ -35,7 +35,7 @@ from .test_plink import PLINK_PREFIX
 from .truth import genotypes as truth_genotypes
 from .truth import variants as truth_variants
 from ..extractor import Extractor
-from ..plink import PlinkReader
+from ..readers.plink import PlinkReader
 
 
 logging.disable(logging.CRITICAL)

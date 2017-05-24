@@ -27,7 +27,7 @@
 
 import re
 
-from . import plink, impute2
+from .readers import plink, impute2
 from .core import (Genotypes, Variant, ImputedVariant, SplitChromosomeReader,
                    Chromosome)
 from .extractor import Extractor

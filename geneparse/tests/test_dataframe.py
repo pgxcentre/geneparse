@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 
 from .generic_tests import TestContainer
-from .. import dataframe
+from ..readers import dataframe
 
 
 logging.disable(logging.CRITICAL)

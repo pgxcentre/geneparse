@@ -2,6 +2,7 @@
 Extractor class.
 """
 
+
 class Extractor(object):
     def __init__(self, parser, names=None, variants=None):
         if names is None and variants is None:

@@ -27,7 +27,7 @@
 
 import re
 
-from .readers import plink, impute2
+from .readers import plink, impute2, dataframe
 from .core import (Genotypes, Variant, ImputedVariant, SplitChromosomeReader,
                    Chromosome)
 from .extractor import Extractor
@@ -82,4 +82,5 @@ parsers = {
     "chrom-split-impute2": _SplitChromosomeReaderFactory(
         impute2.Impute2Reader
     ),
+    "dataframe": dataframe.DataFrameReader,
 }

@@ -46,3 +46,6 @@ class Extractor(object):
         return next(self._iter)
 
     iter_genotypes = __iter__
+
+    def __getattr__(self, key):
+        return getattr(self.parser, key)

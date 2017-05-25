@@ -115,6 +115,7 @@ class PlinkReader(GenotypesReader):
         ]
 
         if info.shape[0] == 0:
+            _log_not_found(variant)
             return []
 
         elif info.shape[0] == 1:
@@ -129,6 +130,7 @@ class PlinkReader(GenotypesReader):
         variant_alleles = variant._encode_alleles([info.a2, info.a1])
         if (_check_alleles and variant_alleles != variant.alleles):
             # Variant with requested alleles is unavailable.
+            _log_not_found(variant)
             return []
 
         geno = self._normalize_missing(self.bed.get_geno_marker(info.name))
@@ -245,7 +247,7 @@ class PlinkReader(GenotypesReader):
             else:
                 # The variant is not in the BIM file, so we return an empty
                 # list
-                logger.warning("Variant {} was not found".format(name))
+                _log_not_found(name)
                 return []
 
         else:
@@ -282,3 +284,7 @@ class PlinkReader(GenotypesReader):
         g = g.astype(float)
         g[g == -1.0] = np.nan
         return g
+
+
+def _log_not_found(o):
+    logger.warning("Variant {} was not found".format(o))

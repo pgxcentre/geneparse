@@ -44,7 +44,7 @@ class Chromosome(object):
         self.name = str(name)
 
     def __repr__(self):
-        return "chr{}".format(self.name)
+        return "{}".format(self.name)
 
     def __hash__(self):
         return hash(self.name)
@@ -147,8 +147,8 @@ class Variant(object):
         return locus_match and overlap
 
     def __repr__(self):
-        return "<Variant {}:{}_{}>".format(self.chrom, self.pos,
-                                           self.alleles)
+        return "<Variant chr{}:{}_{}>".format(self.chrom, self.pos,
+                                              self.alleles)
 
 
 class ImputedVariant(Variant):

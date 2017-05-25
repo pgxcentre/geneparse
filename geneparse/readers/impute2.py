@@ -219,6 +219,7 @@ class Impute2Reader(GenotypesReader):
         ]
 
         if variant_info.shape[0] == 0:
+            _log_not_found(variant)
             return []
 
         elif variant_info.shape[0] == 1:
@@ -241,6 +242,7 @@ class Impute2Reader(GenotypesReader):
         ])
         if (_check_alleles and variant_alleles != variant.alleles):
             # Variant with requested alleles is unavailable.
+            _log_not_found(variant)
             return []
 
         return [genotypes]
@@ -384,7 +386,7 @@ class Impute2Reader(GenotypesReader):
 
                 else:
                     # The variant is not in the index
-                    logger.warning("Variant {} was not found".format(name))
+                    _log_not_found(name)
                     return []
 
         # Seeking to the right place in the file
@@ -674,3 +676,7 @@ def has_index(fn):
 
     """
     return path.isfile(get_index_fn(fn))
+
+
+def _log_not_found(o):
+    logger.warning("Variant '{}' not found.".format(o))

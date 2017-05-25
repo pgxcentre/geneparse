@@ -1,6 +1,4 @@
-"""
-Tests for the plink implementation.
-"""
+"""Genotype parsers."""
 
 # This file is part of geneparse.
 #
@@ -25,28 +23,3 @@ Tests for the plink implementation.
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-
-
-import os
-import unittest
-import logging
-
-from pkg_resources import resource_filename
-
-from .generic_tests import TestContainer
-from ..readers import plink
-
-
-logging.disable(logging.CRITICAL)
-
-
-PLINK_PREFIX = resource_filename(
-    __name__,
-    os.path.join("data", "plink", "btest"),
-)
-
-
-class TestPlink(TestContainer, unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.reader_f = lambda x: plink.PlinkReader(PLINK_PREFIX)

@@ -34,7 +34,7 @@ import logging
 from pkg_resources import resource_filename
 
 from .generic_tests import TestContainer
-from .. import impute2
+from ..readers import impute2
 
 
 logging.disable(logging.CRITICAL)

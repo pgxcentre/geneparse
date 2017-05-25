@@ -29,7 +29,7 @@ DataFrame file reader.
 
 import logging
 
-from .core import GenotypesReader, Genotypes, Variant
+from ..core import GenotypesReader, Genotypes, Variant
 
 
 logger = logging.getLogger(__name__)

@@ -47,12 +47,13 @@ class TestExtractor(unittest.TestCase):
         cls.reader_f = lambda x: PlinkReader(PLINK_PREFIX)
 
     def test_extract_by_name(self):
+        """Tests the extraction using variants name."""
         to_extract = {"rs785467", "rs140543381"}
         reader = self.reader_f()
         extractor = Extractor(reader, names=to_extract)
 
         seen = set()
-        for genotype in extractor:
+        for genotype in extractor.iter_genotypes():
             name = genotype.variant.name
             truth = truth_genotypes[name]
             seen.add(name)
@@ -66,6 +67,7 @@ class TestExtractor(unittest.TestCase):
         reader.close()
 
     def test_extract_by_variant(self):
+        """Tests the extraction using variants object."""
         to_extract = {
             truth_variants["rs785467"],
             truth_variants["rs140543381"]
@@ -74,7 +76,7 @@ class TestExtractor(unittest.TestCase):
         extractor = Extractor(reader, variants=to_extract)
 
         seen = set()
-        for genotype in extractor:
+        for genotype in extractor.iter_genotypes():
             truth = truth_genotypes[genotype.variant.name]
             seen.add(genotype.variant)
 
@@ -84,4 +86,27 @@ class TestExtractor(unittest.TestCase):
             np.testing.assert_array_equal(genotype.genotypes, truth.genotypes)
 
         self.assertEqual(seen, to_extract)
+        reader.close()
+
+    def test_multiple_extract(self):
+        """Tests extracting twice (simulating a subgroup analysis)."""
+        to_extract = {"rs785467", "rs140543381"}
+        reader = self.reader_f()
+        extractor = Extractor(reader, names=to_extract)
+
+        for i in range(2):
+            seen = set()
+            for genotype in extractor.iter_genotypes():
+                name = genotype.variant.name
+                truth = truth_genotypes[name]
+                seen.add(name)
+
+                self.assertEqual(genotype.variant, truth.variant)
+                self.assertEqual(genotype.reference, truth.reference)
+                self.assertEqual(genotype.coded, truth.coded)
+                np.testing.assert_array_equal(genotype.genotypes,
+                                              truth.genotypes)
+
+            self.assertEqual(seen, to_extract)
+
         reader.close()

@@ -130,6 +130,25 @@ class Variant(object):
     def alleles_eq(self, other):
         return self.iterable_alleles_eq(other.alleles)
 
+    def complement_alleles(self):
+        """Complement the alleles of this variant.
+
+        This will apply the following translation table to the alleles:
+
+            A -> T
+            G -> C
+
+        and vice versa.
+
+        Note that this will not create a new object, but modify the state of
+        the current instance.
+
+        """
+        trans = str.maketrans("ATGC", "TACG")
+        self.alleles = self._encode_alleles(
+            [i.translate(trans) for i in self.alleles]
+        )
+
     def __eq__(self, other):
         """Tests for the equality between two variants.
 

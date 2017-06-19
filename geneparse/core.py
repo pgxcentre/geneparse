@@ -133,20 +133,14 @@ class Variant(object):
     def complement_alleles(self):
         """Complement the alleles of this variant.
 
-        This will apply the following translation table to the alleles:
-
-            A -> T
-            G -> C
-
-        and vice versa.
+        This will call this module's `complement_alleles` function.
 
         Note that this will not create a new object, but modify the state of
         the current instance.
 
         """
-        trans = str.maketrans("ATGC", "TACG")
         self.alleles = self._encode_alleles(
-            [i.translate(trans) for i in self.alleles]
+            [complement_alleles(i) for i in self.alleles]
         )
 
     def __eq__(self, other):
@@ -427,6 +421,23 @@ class GenotypesReader(object):
     def get_number_variants(self):
         """Return the number of variants in the file."""
         raise NotImplementedError()
+
+
+def complement_alleles(s):
+    """Complement an allele string.
+
+    This will apply the following translation table to the alleles:
+
+        A -> T
+        G -> C
+
+    and vice versa.
+
+    Other characters will be left as-is.
+
+    """
+    trans = str.maketrans("ATGCatgc", "TACGtacg")
+    return s.translate(trans)
 
 
 def _np_eq(a, b):

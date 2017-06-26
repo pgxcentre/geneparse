@@ -27,6 +27,13 @@ BGEN file reader.
 # THE SOFTWARE.
 
 
+import zlib
+from struct import unpack
+
+import numpy as np
+
+import zstd
+
 from ..core import GenotypesReader
 
 
@@ -42,7 +49,18 @@ class BGENReader(GenotypesReader):
 
         """
         # The BGEN file
-        self._bgen_file = None
+        self._bgen_file = open(filename, "rb")
+        self._parse_header_block()
+
+        # Getting the sample
+        if not self._has_sample:
+            if sample_filename is None:
+                raise ValueError("No sample information in BGEN file, "
+                                 "requires a 'sample_filename'")
+            # TODO: Parse sample file here
+
+        else:
+            self._parse_sample_identifier_block()
 
         # If we have an index, we open it (sqlite3)
         self._bgen_index = None
@@ -53,6 +71,102 @@ class BGENReader(GenotypesReader):
     def close(self):
         if self._bgen_file:
             self._bgen_file.close()
+
+    def _parse_header_block(self):
+        """Parses the BGEN file header."""
+        # Getting the data offset (the start point of the data
+        self._offset = unpack("I", self._bgen_file.read(4))[0]
+
+        # Getting the header size
+        self._header_size = unpack("I", self._bgen_file.read(4))[0]
+
+        # Getting the number of samples and variants
+        self.nb_variants = unpack("I", self._bgen_file.read(4))[0]
+        self.nb_samples = unpack("I", self._bgen_file.read(4))[0]
+
+        # Checking the magic number
+        magic = self._bgen_file.read(4)
+        if magic != b"bgen":
+            # The magic number might be 0, then
+            if unpack("I", magic)[0] != 0:
+                raise ValueError(
+                    "{}: invalid BGEN file.".format(self._bgen_file.name)
+                )
+
+        # Passing through the "free data area"
+        self._bgen_file.read(self._header_size - 20)
+
+        # Reading the flag
+        flag = np.unpackbits(
+            np.array([[_] for _ in self._bgen_file.read(4)], dtype=np.uint8),
+            axis=1,
+        )
+
+        # Getting the compression type from the layout
+        compression = self._bits_to_int(flag[0, -2:])
+        if compression == 0:
+            # No decompression required
+            self._decompress = self._no_decompress
+        elif compression == 1:
+            # ZLIB decompression
+            self._decompress = zlib.decompress
+        elif compression == 2:
+            # ZSTANDARD decompression (needs to be check)
+            self._decompress = zstd.ZstdDecompressor().decompress
+
+        # Getting the layout
+        layout = self._bits_to_int(flag[0, -6:-2])
+        if layout == 0:
+            raise ValueError(
+                "{}: invalid BGEN file".format(self._bgen_file.name)
+            )
+        elif layout == 1:
+            self._layout = 1
+        elif layout == 2:
+            self._layout = 2
+        else:
+            raise ValueError(
+                "{}: {} invalid layout type".format(self._bgen_file.name,
+                                                    layout)
+            )
+
+        # Checking if samples are in the file
+        self._has_sample = flag[-1, 0] == 1
+
+    def _parse_sample_identifier_block(self):
+        """Parses the sample identifier block."""
+        # Getting the block size
+        block_size = unpack("I", self._bgen_file.read(4))[0]
+        if block_size + self._header_size > self._offset:
+            raise ValueError(
+                "{}: invalid BGEN file".format(self._bgen_file.name)
+            )
+
+        # Checking the number of samples
+        n = unpack("I", self._bgen_file.read(4))[0]
+        if n != self.nb_samples:
+            raise ValueError(
+                "{}: invalid BGEN file".format(self._bgen_file.name)
+            )
+
+        # Getting the sample information
+        samples = []
+        for i in range(self.nb_samples):
+            size = unpack("H", self._bgen_file.read(2))[0]
+            samples.append(self._bgen_file.read(size).decode())
+        self.samples = tuple(samples)
+
+    @staticmethod
+    def _bits_to_int(bits):
+        """Converts bits to int."""
+        result = 0
+        for bit in bits:
+            result = (result << 1) | bit
+        return result
+
+    def _no_decompress(data):
+        """No compression, so we return the data as is."""
+        return data
 
     def get_variant_genotypes(self, variant):
         """Get the genotypes from a well formed variant instance.
@@ -110,7 +224,7 @@ class BGENReader(GenotypesReader):
             int: The number of samples.
 
         """
-        pass
+        return self.nb_samples
 
     def get_number_variants(self):
         """Returns the number of markers.
@@ -119,7 +233,7 @@ class BGENReader(GenotypesReader):
             int: The number of markers.
 
         """
-        pass
+        return self.nb_variants
 
     def get_samples(self):
-        pass
+        return self.samples

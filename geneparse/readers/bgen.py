@@ -28,6 +28,8 @@ BGEN file reader.
 
 
 import zlib
+import sqlite3
+from os import path
 from struct import unpack
 
 import numpy as np
@@ -63,7 +65,9 @@ class BGENReader(GenotypesReader):
             self._parse_sample_identifier_block()
 
         # If we have an index, we open it (sqlite3)
-        self._bgen_index = None
+        if not path.isfile(filename + ".bgi"):
+            raise ValueError("{}: no index file".format(filename))
+        self._bgen_index = sqlite3.connect(filename + ".bgi")
 
         # The probability threshold
         self.prob_t = probability_threshold
@@ -71,6 +75,8 @@ class BGENReader(GenotypesReader):
     def close(self):
         if self._bgen_file:
             self._bgen_file.close()
+        if self._bgen_index:
+            self._bgen_index.close()
 
     def _parse_header_block(self):
         """Parses the BGEN file header."""
@@ -104,15 +110,18 @@ class BGENReader(GenotypesReader):
 
         # Getting the compression type from the layout
         compression = self._bits_to_int(flag[0, -2:])
+        self._is_compressed = False
         if compression == 0:
             # No decompression required
             self._decompress = self._no_decompress
         elif compression == 1:
             # ZLIB decompression
             self._decompress = zlib.decompress
+            self._is_compressed = True
         elif compression == 2:
             # ZSTANDARD decompression (needs to be check)
             self._decompress = zstd.ZstdDecompressor().decompress
+            self._is_compressed = True
 
         # Getting the layout
         layout = self._bits_to_int(flag[0, -6:-2])
@@ -168,6 +177,17 @@ class BGENReader(GenotypesReader):
         """No compression, so we return the data as is."""
         return data
 
+    def _seek_to_first_variant(self):
+        """Seeks to the first variant of the file."""
+        c = self._bgen_index.cursor()
+        c.execute(
+            "SELECT file_start_position "
+            "FROM Variant "
+            "ORDER BY file_start_position "
+            "LIMIT 1",
+        )
+        self._bgen_file.seek(c.fetchone()[0])
+
     def get_variant_genotypes(self, variant):
         """Get the genotypes from a well formed variant instance.
 
@@ -181,6 +201,93 @@ class BGENReader(GenotypesReader):
         """
         pass
 
+    def _get_curr_variant_info(self):
+        """Gets the current variant's information."""
+        if self._layout == 1:
+            n = unpack("I", self._bgen_file.read(4))[0]
+            if n != self.nb_samples:
+                raise ValueError(
+                    "{}: invalid BGEN file".format(self._bgen_file.name),
+                )
+
+        # Reading the variant id
+        var_id = self._bgen_file.read(
+            unpack("H", self._bgen_file.read(2))[0]
+        ).decode()
+
+        # Reading the variant rsid
+        rs_id = self._bgen_file.read(
+            unpack("H", self._bgen_file.read(2))[0]
+        ).decode()
+
+        # Reading the chromosome
+        chrom = self._bgen_file.read(
+            unpack("H", self._bgen_file.read(2))[0]
+        ).decode()
+
+        # Reading the position
+        pos = unpack("I", self._bgen_file.read(4))[0]
+
+        # Getting the number of alleles
+        nb_alleles = 2
+        if self._layout == 2:
+            nb_alleles = unpack("H", self._bgen_file.read(2))[0]
+
+        # Getting the alleles
+        alleles = []
+        for _ in range(nb_alleles):
+            alleles.append(self._bgen_file.read(
+                unpack("I", self._bgen_file.read(4))[0]
+            ).decode())
+
+        return var_id, rs_id, chrom, pos, tuple(alleles)
+
+    def _get_curr_variant_probs(self):
+        """Gets the current variant's genotypes."""
+        probs = None
+        if self._layout == 1:
+            c = self.nb_samples
+            if self._is_compressed:
+                c = unpack("I", self._bgen_file.read(4))[0]
+
+            # Getting the probabilities
+            probs = np.fromstring(
+                self._decompress(self._bgen_file.read(c)),
+                dtype="u2",
+            ) / 32768
+            probs.shape = (self.nb_samples, 3)
+
+        else:
+            # The total length C of the rest of the data for this variant
+            c = unpack("I", self._bgen_file.read(4))[0]
+
+            # The number of bytes to read
+            to_read = c
+
+            # D = C if no compression
+            d = c
+            if self._is_compressed:
+                # The total length D of the probability data after
+                # decompression
+                d = unpack("I", self._bgen_file.read(4))[0]
+                to_read = c - 4
+
+            # Reading the data and checking
+            data = self._decompress(self._bgen_file.read(to_read))
+            if len(data) != d:
+                raise ValueError(
+                    "{}: invalid BGEN file".format(self._bgen_file.name)
+                )
+
+            # Checking the number of samples
+            n = unpack("I", data[:4])[0]
+            if n != self.nb_samples:
+                raise ValueError(
+                    "{}: invalid BGEN file".format(self._bgen_file.name)
+                )
+
+        return probs
+
     def iter_genotypes(self):
         """Iterates on available markers.
 
@@ -188,7 +295,22 @@ class BGENReader(GenotypesReader):
             Genotypes instances.
 
         """
-        pass
+        # Seeking at the beginning of the variants
+        self._seek_to_first_variant()
+
+        # Checking the number of samples
+        for i in range(self.nb_variants):
+            # Getting the variant's information
+            var_id, rs_id, chrom, pos, alleles = self._get_curr_variant_info()
+
+            # Getting the variant's genotypes
+            probs = self._get_curr_variant_probs()
+
+            print(var_id, rs_id, chrom, pos, alleles)
+            print(probs)
+
+            yield None
+            break
 
     def iter_variants(self):
         """Iterate over marker information."""

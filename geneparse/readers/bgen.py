@@ -36,7 +36,7 @@ import numpy as np
 
 import zstd
 
-from ..core import GenotypesReader
+from ..core import GenotypesReader, Genotypes, Variant, VALID_CHROMOSOMES
 
 
 class BGENReader(GenotypesReader):
@@ -240,11 +240,11 @@ class BGENReader(GenotypesReader):
                 unpack("I", self._bgen_file.read(4))[0]
             ).decode())
 
-        return var_id, rs_id, chrom, pos, tuple(alleles)
+        return var_id, rs_id, int(chrom), pos, tuple(alleles)
 
-    def _get_curr_variant_probs(self):
-        """Gets the current variant's genotypes."""
-        probs = None
+    def _get_curr_variant_dosage(self):
+        """Gets the current variant's dosage."""
+        dosage = None
         if self._layout == 1:
             c = self.nb_samples
             if self._is_compressed:
@@ -256,6 +256,9 @@ class BGENReader(GenotypesReader):
                 dtype="u2",
             ) / 32768
             probs.shape = (self.nb_samples, 3)
+
+            # Computing the dosage
+            dosage = self._layout_1_probs_to_dosage(probs)
 
         else:
             # The total length C of the rest of the data for this variant
@@ -285,8 +288,97 @@ class BGENReader(GenotypesReader):
                 raise ValueError(
                     "{}: invalid BGEN file".format(self._bgen_file.name)
                 )
+            data = data[4:]
 
-        return probs
+            # Checking the number of alleles (we only accept 2 alleles)
+            nb_alleles = unpack("H", data[:2])[0]
+            if nb_alleles != 2:
+                raise ValueError(
+                    "{}: only two alleles are "
+                    "supported".format(self._bgen_file.name)
+                )
+            data = data[2:]
+
+            # TODO: Check ploidy for sexual chromosomes
+            # The minimum and maximum for ploidy (we only accept ploidy of 2)
+            min_ploidy, max_ploidy = data[:2]
+            if min_ploidy != 2 and max_ploidy != 2:
+                raise ValueError(
+                    "{}: only accepting ploidy of "
+                    "2".format(self._bgen_file.name)
+                )
+            data = data[2:]
+
+            # Check the list of N bytes for missingness (since we assume only
+            # diploid values for each sample)
+            ploidy_info = data[:n]
+            ploidy_info = np.unpackbits(
+                np.array([[_] for _ in ploidy_info], dtype=np.uint8),
+                axis=1,
+            )
+            missing_data = ploidy_info[:, 0] == 1
+            data = data[n:]
+
+            # TODO: Permit phased data
+            # Is the data phased?
+            is_phased = data[0] == 1
+            if is_phased:
+                raise ValueError(
+                    "{}: only accepting unphased "
+                    "data".format(self._bgen_file.name)
+                )
+            data = data[1:]
+
+            # The number of bytes used to encode each probabilities
+            b = data[0]
+            if b % 8 != 0:
+                raise ValueError(
+                    "{}: only multuple of 8 encoding is "
+                    "accepted".format(self._bgen_file.name)
+                )
+            data = data[1:]
+
+            # Reading the probabilities (don't forget we allow only for diploid
+            # values)
+            probs = np.fromstring(
+                data, dtype="u{}".format(b // 8)
+            ) / (2**b - 1)
+            probs.shape = (self.nb_samples, 2)
+
+            # Computing the dosage
+            dosage = self._layout_2_probs_to_dosage(probs)
+
+            # Setting the missing to NaN
+            dosage[missing_data] = np.nan
+
+        return dosage
+
+    def _layout_1_probs_to_dosage(self, probs):
+        """Transforms probability values to dosage (from layout 1)"""
+        # Constructing the dosage
+        dosage = 2 * probs[:, 2] + probs[:, 1]
+        if self.prob_t > 0:
+            dosage[~np.any(probs >= self.prob_t, axis=1)] = np.nan
+
+        return dosage
+
+    def _layout_2_probs_to_dosage(self, probs):
+        """Transforms probability values to dosage (from layout 2)."""
+        # Computing the last genotype's probabilities
+        last_probs = 1 - np.sum(probs, axis=1)
+
+        # Constructing the dosage
+        dosage = 2 * last_probs + probs[:, 1]
+
+        # Setting low quality to NaN
+        if self.prob_t > 0:
+            good_probs = (
+                np.any(probs >= self.prob_t, axis=1) |
+                (last_probs >= self.prob_t)
+            )
+            dosage[~good_probs] = np.nan
+
+        return dosage
 
     def iter_genotypes(self):
         """Iterates on available markers.
@@ -303,14 +395,18 @@ class BGENReader(GenotypesReader):
             # Getting the variant's information
             var_id, rs_id, chrom, pos, alleles = self._get_curr_variant_info()
 
-            # Getting the variant's genotypes
-            probs = self._get_curr_variant_probs()
+            # Getting the variant's dosage
+            dosage = self._get_curr_variant_dosage()
 
-            print(var_id, rs_id, chrom, pos, alleles)
-            print(probs)
-
-            yield None
-            break
+            # TODO: Check multiallelic status below
+            yield Genotypes(
+                Variant(rs_id, VALID_CHROMOSOMES[str(chrom)], int(pos),
+                        alleles),
+                dosage,
+                reference=alleles[0],
+                coded=alleles[1],
+                multiallelic=False,
+            )
 
     def iter_variants(self):
         """Iterate over marker information."""

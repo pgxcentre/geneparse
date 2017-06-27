@@ -34,13 +34,18 @@ from struct import unpack
 
 import numpy as np
 
-from ..core import GenotypesReader, Genotypes, Variant, VALID_CHROMOSOMES
+from ..core import GenotypesReader, Genotypes, Variant
 
 try:
     import zstd
     HAS_ZSTD = True
 except ImportError:
     HAS_ZSTD = False
+
+
+CHROM_STR_ENCODE = {"0{}".format(chrom): str(chrom) for chrom in range(1, 10)}
+CHROM_STR_ENCODE["23"] = "X"
+CHROM_STR_ENCODE["24"] = "Y"
 
 
 class BGENReader(GenotypesReader):
@@ -249,7 +254,7 @@ class BGENReader(GenotypesReader):
                 unpack("I", self._bgen_file.read(4))[0]
             ).decode())
 
-        return var_id, rs_id, int(chrom), pos, tuple(alleles)
+        return var_id, rs_id, chrom, pos, tuple(alleles)
 
     def _get_curr_variant_dosage(self):
         """Gets the current variant's dosage."""
@@ -409,7 +414,7 @@ class BGENReader(GenotypesReader):
 
             # TODO: Check multiallelic status below
             yield Genotypes(
-                Variant(rs_id, VALID_CHROMOSOMES[str(chrom)], int(pos),
+                Variant(rs_id, CHROM_STR_ENCODE.get(chrom, chrom), pos,
                         alleles),
                 dosage,
                 reference=alleles[0],
@@ -419,7 +424,22 @@ class BGENReader(GenotypesReader):
 
     def iter_variants(self):
         """Iterate over marker information."""
-        pass
+        c = self._bgen_index.cursor()
+        c.execute(
+            "SELECT chromosome, position, rsid, allele1, allele2 "
+            "FROM Variant "
+        )
+
+        # The array size
+        array_size = 10000
+
+        # Fetching the results
+        results = c.fetchmany(array_size)
+        while results:
+            for chrom, pos, rsid, a1, a2 in results:
+                yield Variant(rsid, CHROM_STR_ENCODE.get(chrom, chrom),
+                              pos, [a1, a2])
+            results = c.fetchmany(array_size)
 
     def get_variants_in_region(self, chrom, start, end):
         """Iterate over variants in a region."""

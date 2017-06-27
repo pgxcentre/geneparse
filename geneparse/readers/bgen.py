@@ -56,10 +56,10 @@ class BGENReader(GenotypesReader):
 
         # Getting the sample
         if not self._has_sample:
+            # TODO: Parse sample file here
             if sample_filename is None:
                 raise ValueError("No sample information in BGEN file, "
                                  "requires a 'sample_filename'")
-            # TODO: Parse sample file here
 
         else:
             self._parse_sample_identifier_block()
@@ -416,21 +416,14 @@ class BGENReader(GenotypesReader):
         """Iterate over variants in a region."""
         pass
 
-    def get_variant_by_name(self, name, variant_info=None):
+    def get_variant_by_name(self, name):
         """Get the genotype of a marker using it's name.
 
         Args:
             name (str): The name of the marker.
-            variant_info (pandas.Series): The marker information (e.g. seek).
 
         Returns:
-            list: A list of Genotypes (only one for PyPlink, see note below).
-
-        Note
-        ====
-            From PyPlink version 1.3.2 and onwards, each name is unique in the
-            dataset. Hence, we can use the 'get_geno_marker' function and be
-            sure only one variant is returned.
+            list: A list of Genotypes.
 
         """
         pass
@@ -454,4 +447,5 @@ class BGENReader(GenotypesReader):
         return self.nb_variants
 
     def get_samples(self):
-        return self.samples
+        """Returns the list of samples."""
+        return list(self.samples)

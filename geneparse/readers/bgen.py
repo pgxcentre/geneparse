@@ -216,7 +216,30 @@ class BGENReader(GenotypesReader):
             well as a vector of encoded genotypes.
 
         """
-        pass
+        self._bgen_index.execute(
+            "SELECT allele1, allele2, file_start_position "
+            "FROM Variant "
+            "WHERE chromosome = ? AND position = ?",
+            (CHROM_STR_DECODE.get(variant.chrom.name, variant.chrom.name),
+             variant.pos),
+        )
+
+        # Fetching all the variants that matches the required one
+        variant_info = self._bgen_index.fetchall()
+
+        # Getting the results
+        results = []
+        for a1, a2, seek_pos in variant_info:
+            if (variant.alleles is None or
+                    variant.iterable_alleles_eq([a1, a2])):
+                self._bgen_file.seek(seek_pos)
+                results.append(self._get_curr_variant_genotypes())
+
+        # If there are no results
+        if not results:
+            logging.variant_name_not_found(variant)
+
+        return results
 
     def _get_curr_variant_info(self):
         """Gets the current variant's information."""

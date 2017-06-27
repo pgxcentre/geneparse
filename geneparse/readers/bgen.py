@@ -34,6 +34,7 @@ from struct import unpack
 
 import numpy as np
 
+from .. import logging
 from ..core import GenotypesReader, Genotypes, Variant
 
 try:
@@ -78,7 +79,8 @@ class BGENReader(GenotypesReader):
         # If we have an index, we open it (sqlite3)
         if not path.isfile(filename + ".bgi"):
             raise ValueError("{}: no index file".format(filename))
-        self._bgen_index = sqlite3.connect(filename + ".bgi")
+        self._bgen_db = sqlite3.connect(filename + ".bgi")
+        self._bgen_index = self._bgen_db.cursor()
 
         # The probability threshold
         self.prob_t = probability_threshold
@@ -86,8 +88,8 @@ class BGENReader(GenotypesReader):
     def close(self):
         if self._bgen_file:
             self._bgen_file.close()
-        if self._bgen_index:
-            self._bgen_index.close()
+        if self._bgen_db:
+            self._bgen_db.close()
 
     def _parse_header_block(self):
         """Parses the BGEN file header."""
@@ -195,14 +197,13 @@ class BGENReader(GenotypesReader):
 
     def _seek_to_first_variant(self):
         """Seeks to the first variant of the file."""
-        c = self._bgen_index.cursor()
-        c.execute(
+        self._bgen_index.execute(
             "SELECT file_start_position "
             "FROM Variant "
             "ORDER BY file_start_position "
             "LIMIT 1",
         )
-        self._bgen_file.seek(c.fetchone()[0])
+        self._bgen_file.seek(self._bgen_index.fetchone()[0])
 
     def get_variant_genotypes(self, variant):
         """Get the genotypes from a well formed variant instance.
@@ -430,27 +431,24 @@ class BGENReader(GenotypesReader):
 
     def iter_variants(self):
         """Iterate over marker information."""
-        c = self._bgen_index.cursor()
-        c.execute(
-            "SELECT chromosome, position, rsid, allele1, allele2 "
-            "FROM Variant "
+        self._bgen_index.execute(
+            "SELECT chromosome, position, rsid, allele1, allele2 FROM Variant",
         )
 
         # The array size
         array_size = 10000
 
         # Fetching the results
-        results = c.fetchmany(array_size)
+        results = self._bgen_index.fetchmany(array_size)
         while results:
             for chrom, pos, rsid, a1, a2 in results:
                 yield Variant(rsid, CHROM_STR_ENCODE.get(chrom, chrom),
                               pos, [a1, a2])
-            results = c.fetchmany(array_size)
+            results = self._bgen_index.fetchmany(array_size)
 
     def get_variants_in_region(self, chrom, start, end):
         """Iterate over variants in a region."""
-        c = self._bgen_index.cursor()
-        c.execute(
+        self._bgen_index.execute(
             "SELECT file_start_position "
             "FROM Variant "
             "WHERE chromosome = ? AND position >= ? AND position <= ?",
@@ -458,7 +456,7 @@ class BGENReader(GenotypesReader):
         )
 
         # Fetching all the seek positions
-        seek_positions = [_[0] for _ in c.fetchall()]
+        seek_positions = [_[0] for _ in self._bgen_index.fetchall()]
 
         # Fetching seek positions, we return the variant
         for seek_pos in seek_positions:
@@ -475,7 +473,24 @@ class BGENReader(GenotypesReader):
             list: A list of Genotypes.
 
         """
-        pass
+        self._bgen_index.execute(
+            "SELECT file_start_position FROM Variant WHERE rsid = ?",
+            (name, )
+        )
+
+        # Fetching all the seek positions
+        seek_positions = [_[0] for _ in self._bgen_index.fetchall()]
+
+        # Constructing the results
+        results = []
+        for seek_pos in seek_positions:
+            self._bgen_file.seek(seek_pos)
+            results.append(self._get_curr_variant_genotypes())
+
+        if not results:
+            logging.variant_name_not_found(name)
+
+        return results
 
     def get_number_samples(self):
         """Returns the number of samples.

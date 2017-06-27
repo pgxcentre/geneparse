@@ -34,9 +34,13 @@ from struct import unpack
 
 import numpy as np
 
-import zstd
-
 from ..core import GenotypesReader, Genotypes, Variant, VALID_CHROMOSOMES
+
+try:
+    import zstd
+    HAS_ZSTD = True
+except ImportError:
+    HAS_ZSTD = False
 
 
 class BGENReader(GenotypesReader):
@@ -114,11 +118,16 @@ class BGENReader(GenotypesReader):
         if compression == 0:
             # No decompression required
             self._decompress = self._no_decompress
+
         elif compression == 1:
             # ZLIB decompression
             self._decompress = zlib.decompress
             self._is_compressed = True
+
         elif compression == 2:
+            if not HAS_ZSTD:
+                raise ValueError("zstandard module is not installed")
+
             # ZSTANDARD decompression (needs to be check)
             self._decompress = zstd.ZstdDecompressor().decompress
             self._is_compressed = True

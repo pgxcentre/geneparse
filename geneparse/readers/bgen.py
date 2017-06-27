@@ -47,6 +47,8 @@ CHROM_STR_ENCODE = {"0{}".format(chrom): str(chrom) for chrom in range(1, 10)}
 CHROM_STR_ENCODE["23"] = "X"
 CHROM_STR_ENCODE["24"] = "Y"
 
+CHROM_STR_DECODE = {v: k for k, v in CHROM_STR_ENCODE.items()}
+
 
 class BGENReader(GenotypesReader):
     def __init__(self, filename, sample_filename=None,
@@ -367,6 +369,24 @@ class BGENReader(GenotypesReader):
 
         return dosage
 
+    def _get_curr_variant_genotypes(self):
+        """Gets the current genotypes."""
+        # Getting the variant's information
+        var_id, rs_id, chrom, pos, alleles = self._get_curr_variant_info()
+
+        # Getting the variant's dosage
+        dosage = self._get_curr_variant_dosage()
+
+        # TODO: Check multiallelic status below
+        return Genotypes(
+            Variant(rs_id, CHROM_STR_ENCODE.get(chrom, chrom), pos,
+                    alleles),
+            dosage,
+            reference=alleles[0],
+            coded=alleles[1],
+            multiallelic=False,
+        )
+
     def _layout_1_probs_to_dosage(self, probs):
         """Transforms probability values to dosage (from layout 1)"""
         # Constructing the dosage
@@ -406,21 +426,7 @@ class BGENReader(GenotypesReader):
 
         # Checking the number of samples
         for i in range(self.nb_variants):
-            # Getting the variant's information
-            var_id, rs_id, chrom, pos, alleles = self._get_curr_variant_info()
-
-            # Getting the variant's dosage
-            dosage = self._get_curr_variant_dosage()
-
-            # TODO: Check multiallelic status below
-            yield Genotypes(
-                Variant(rs_id, CHROM_STR_ENCODE.get(chrom, chrom), pos,
-                        alleles),
-                dosage,
-                reference=alleles[0],
-                coded=alleles[1],
-                multiallelic=False,
-            )
+            yield self._get_curr_variant_genotypes()
 
     def iter_variants(self):
         """Iterate over marker information."""
@@ -443,7 +449,21 @@ class BGENReader(GenotypesReader):
 
     def get_variants_in_region(self, chrom, start, end):
         """Iterate over variants in a region."""
-        pass
+        c = self._bgen_index.cursor()
+        c.execute(
+            "SELECT file_start_position "
+            "FROM Variant "
+            "WHERE chromosome = ? AND position >= ? AND position <= ?",
+            (CHROM_STR_DECODE.get(chrom, chrom), start, end),
+        )
+
+        # Fetching all the seek positions
+        seek_positions = [_[0] for _ in c.fetchall()]
+
+        # Fetching seek positions, we return the variant
+        for seek_pos in seek_positions:
+            self._bgen_file.seek(seek_pos)
+            yield self._get_curr_variant_genotypes()
 
     def get_variant_by_name(self, name):
         """Get the genotype of a marker using it's name.

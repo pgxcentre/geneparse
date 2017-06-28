@@ -68,7 +68,6 @@ class BGENReader(GenotypesReader):
 
         # Getting the sample
         if not self._has_sample:
-            # TODO: Parse sample file here
             if sample_filename is None:
                 raise ValueError("No sample information in BGEN file, "
                                  "requires a 'sample_filename'")
@@ -86,8 +85,15 @@ class BGENReader(GenotypesReader):
         # The probability threshold
         self.prob_t = probability_threshold
 
-        # The chromosome
+        # Does the user ask for a chromosome?
         self.chrom = chromosome
+        if self.chrom is not None:
+            # Checking that the index contains only one chromosome, and it's NA
+            self._bgen_index.execute("SELECT DISTINCT chromosome FROM Variant")
+            possible_chrom = [_[0] for _ in self._bgen_index.fetchall()]
+            if len(possible_chrom) != 1 or possible_chrom[0] != "NA":
+                raise ValueError("chromosome was set, but not all chromosome "
+                                 "in the index is 'NA'")
 
     def close(self):
         if self._bgen_file:
@@ -263,12 +269,17 @@ class BGENReader(GenotypesReader):
             well as a vector of encoded genotypes.
 
         """
+        # The chromosome to search for (if a general one is set, that's the one
+        # we need to search for)
+        chrom = variant.chrom.name
+        if self.chrom is not None and chrom == self.chrom:
+            chrom = "NA"
+
         self._bgen_index.execute(
             "SELECT allele1, allele2, file_start_position "
             "FROM Variant "
             "WHERE chromosome = ? AND position = ?",
-            (CHROM_STR_DECODE.get(variant.chrom.name, variant.chrom.name),
-             variant.pos),
+            (CHROM_STR_DECODE.get(chrom, chrom), variant.pos),
         )
 
         # Fetching all the variants that matches the required one
@@ -446,7 +457,7 @@ class BGENReader(GenotypesReader):
         var_id, rs_id, chrom, pos, alleles = self._get_curr_variant_info()
 
         # Checking the chromosome
-        if chrom == "NA" and self.chrom is not None:
+        if self.chrom is not None:
             chrom = self.chrom
 
         # Getting the variant's dosage
@@ -516,12 +527,18 @@ class BGENReader(GenotypesReader):
         results = self._bgen_index.fetchmany(array_size)
         while results:
             for chrom, pos, rsid, a1, a2 in results:
+                if self.chrom is not None:
+                    chrom = self.chrom
                 yield Variant(rsid, CHROM_STR_ENCODE.get(chrom, chrom),
                               pos, [a1, a2])
             results = self._bgen_index.fetchmany(array_size)
 
     def get_variants_in_region(self, chrom, start, end):
         """Iterate over variants in a region."""
+        if self.chrom is not None and chrom == self.chrom:
+            # We are going to search for 'NA' since the chromosome was set
+            chrom = "NA"
+
         self._bgen_index.execute(
             "SELECT file_start_position "
             "FROM Variant "

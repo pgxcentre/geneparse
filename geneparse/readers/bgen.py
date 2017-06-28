@@ -72,6 +72,7 @@ class BGENReader(GenotypesReader):
             if sample_filename is None:
                 raise ValueError("No sample information in BGEN file, "
                                  "requires a 'sample_filename'")
+            self._parse_sample_file(sample_filename)
 
         else:
             self._parse_sample_identifier_block()
@@ -185,6 +186,49 @@ class BGENReader(GenotypesReader):
             size = unpack("H", self._bgen_file.read(2))[0]
             samples.append(self._bgen_file.read(size).decode())
         self.samples = tuple(samples)
+
+        # Just a check with the header
+        if len(self.samples) != self.get_number_samples():
+            raise ValueError("{}: number of samples different between header "
+                             "and sample block".format(self._bgen_file.name))
+
+    def _parse_sample_file(self, fn):
+        """Parses the sample file."""
+        # Reading the samples
+        with open(fn, "r") as f:
+            sample_data = [_.split(" ") for _ in f.read().splitlines()]
+
+        # Splitting the header and data
+        header = {name: i for i, name in enumerate(sample_data[0])}
+        sample_data = sample_data[2:]
+
+        # Checking the header
+        if ("ID_1" not in header) or ("ID_2" not in header):
+            raise ValueError("{}: wrong header for sample file".format(fn))
+
+        # Keeping only the IDs
+        id1 = [_[header["ID_1"]] for _ in sample_data]
+        id2 = [_[header["ID_2"]] for _ in sample_data]
+
+        # We usually keep the ID_2 since it's the IID and not the FID
+        self.samples = tuple(id2)
+        if len(id2) != len(set(id2)):
+            logging.info(
+                "Setting the index as 'fid_iid' because the individual IDs "
+                "are not unique."
+            )
+            self.samples = tuple(
+                ["{}_{}".format(fid, iid) for fid, iid in zip(id1, id2)]
+            )
+
+            # Last check
+            if len(self.samples) != len(set(self.samples)):
+                raise ValueError("{}: duplicated fid_iid".format(fn))
+
+        # Checking with the number of samples in the BGEN file
+        if len(self.samples) != self.get_number_samples():
+            raise ValueError("{}: invalid number of samples compared to BGEN "
+                             "file".format(fn))
 
     @staticmethod
     def _bits_to_int(bits):

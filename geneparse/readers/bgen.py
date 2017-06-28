@@ -52,7 +52,7 @@ CHROM_STR_DECODE = {v: k for k, v in CHROM_STR_ENCODE.items()}
 
 
 class BGENReader(GenotypesReader):
-    def __init__(self, filename, sample_filename=None,
+    def __init__(self, filename, sample_filename=None, chromosome=None,
                  probability_threshold=0.9):
         """BGEN file reader.
 
@@ -84,6 +84,9 @@ class BGENReader(GenotypesReader):
 
         # The probability threshold
         self.prob_t = probability_threshold
+
+        # The chromosome
+        self.chrom = chromosome
 
     def close(self):
         if self._bgen_file:
@@ -397,6 +400,10 @@ class BGENReader(GenotypesReader):
         """Gets the current genotypes."""
         # Getting the variant's information
         var_id, rs_id, chrom, pos, alleles = self._get_curr_variant_info()
+
+        # Checking the chromosome
+        if chrom == "NA" and self.chrom is not None:
+            chrom = self.chrom
 
         # Getting the variant's dosage
         dosage = self._get_curr_variant_dosage()

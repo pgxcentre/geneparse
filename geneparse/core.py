@@ -160,8 +160,8 @@ class Variant(object):
         return locus_match and overlap
 
     def __repr__(self):
-        return "<Variant chr{}:{}_{}>".format(self.chrom, self.pos,
-                                              self.alleles)
+        return "<{} chr{}:{}_{}>".format(self.__class__.__name__, self.chrom,
+                                         self.pos, self.alleles)
 
 
 class ImputedVariant(Variant):
@@ -171,7 +171,7 @@ class ImputedVariant(Variant):
         super().__init__(name, chrom, pos, alleles)
         self.quality = float(quality)
 
-        if 0 <= self.quality <= 1:
+        if not 0 <= self.quality <= 1:
             raise ValueError(
                 "The 'quality' field for ImputedVariant instances is expected "
                 "to be a float value between 0 and 1."

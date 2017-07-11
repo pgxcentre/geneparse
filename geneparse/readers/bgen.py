@@ -1,5 +1,5 @@
 """
-BGEN file reader.
+BGEN file reader based on PyBGEN.
 """
 
 # This file is part of geneparse.
@@ -27,21 +27,10 @@ BGEN file reader.
 # THE SOFTWARE.
 
 
-import zlib
-import sqlite3
-from os import path
-from struct import unpack
-
-import numpy as np
+from pybgen import PyBGEN
 
 from .. import logging
 from ..core import GenotypesReader, Genotypes, Variant
-
-try:
-    import zstd
-    HAS_ZSTD = True
-except ImportError:
-    HAS_ZSTD = False
 
 
 CHROM_STR_ENCODE = {"0{}".format(chrom): str(chrom) for chrom in range(1, 10)}
@@ -62,201 +51,23 @@ class BGENReader(GenotypesReader):
             probability_threshold (float): The probability threshold.
 
         """
-        # The BGEN file
-        self._bgen_file = open(filename, "rb")
-        self._parse_header_block()
+        # The BGEN reader
+        self._bgen = PyBGEN(filename, prob_t=probability_threshold)
 
-        # Getting the sample
-        if not self._has_sample:
+        # Getting the samples
+        self.samples = self._bgen.samples
+        if self.samples is None:
+            # The BGEN file didn't contain samples, so we read from file
             if sample_filename is None:
                 raise ValueError("No sample information in BGEN file, "
                                  "requires a 'sample_filename'")
             self._parse_sample_file(sample_filename)
 
-        else:
-            self._parse_sample_identifier_block()
-
-        # If we have an index, we open it (sqlite3)
-        if not path.isfile(filename + ".bgi"):
-            raise ValueError("{}: no index file".format(filename))
-        self._bgen_db = sqlite3.connect(filename + ".bgi")
-        self._bgen_index = self._bgen_db.cursor()
-
-        # The probability threshold
-        self.prob_t = probability_threshold
-
         # Does the user ask for a chromosome?
         self.chrom = chromosome
-        if self.chrom is not None:
-            # Checking that the index contains only one chromosome, and it's NA
-            self._bgen_index.execute("SELECT DISTINCT chromosome FROM Variant")
-            possible_chrom = [_[0] for _ in self._bgen_index.fetchall()]
-            if len(possible_chrom) != 1 or possible_chrom[0] != "NA":
-                raise ValueError("chromosome was set, but not all chromosome "
-                                 "in the index is 'NA'")
 
     def close(self):
-        if self._bgen_file:
-            self._bgen_file.close()
-        if self._bgen_db:
-            self._bgen_db.close()
-
-    def _parse_header_block(self):
-        """Parses the BGEN file header."""
-        # Getting the data offset (the start point of the data
-        self._offset = unpack("I", self._bgen_file.read(4))[0]
-
-        # Getting the header size
-        self._header_size = unpack("I", self._bgen_file.read(4))[0]
-
-        # Getting the number of samples and variants
-        self.nb_variants = unpack("I", self._bgen_file.read(4))[0]
-        self.nb_samples = unpack("I", self._bgen_file.read(4))[0]
-
-        # Checking the magic number
-        magic = self._bgen_file.read(4)
-        if magic != b"bgen":
-            # The magic number might be 0, then
-            if unpack("I", magic)[0] != 0:
-                raise ValueError(
-                    "{}: invalid BGEN file.".format(self._bgen_file.name)
-                )
-
-        # Passing through the "free data area"
-        self._bgen_file.read(self._header_size - 20)
-
-        # Reading the flag
-        flag = np.unpackbits(
-            np.array([[_] for _ in self._bgen_file.read(4)], dtype=np.uint8),
-            axis=1,
-        )
-
-        # Getting the compression type from the layout
-        compression = self._bits_to_int(flag[0, -2:])
-        self._is_compressed = False
-        if compression == 0:
-            # No decompression required
-            self._decompress = self._no_decompress
-
-        elif compression == 1:
-            # ZLIB decompression
-            self._decompress = zlib.decompress
-            self._is_compressed = True
-
-        elif compression == 2:
-            if not HAS_ZSTD:
-                raise ValueError("zstandard module is not installed")
-
-            # ZSTANDARD decompression (needs to be check)
-            self._decompress = zstd.ZstdDecompressor().decompress
-            self._is_compressed = True
-
-        # Getting the layout
-        layout = self._bits_to_int(flag[0, -6:-2])
-        if layout == 0:
-            raise ValueError(
-                "{}: invalid BGEN file".format(self._bgen_file.name)
-            )
-        elif layout == 1:
-            self._layout = 1
-        elif layout == 2:
-            self._layout = 2
-        else:
-            raise ValueError(
-                "{}: {} invalid layout type".format(self._bgen_file.name,
-                                                    layout)
-            )
-
-        # Checking if samples are in the file
-        self._has_sample = flag[-1, 0] == 1
-
-    def _parse_sample_identifier_block(self):
-        """Parses the sample identifier block."""
-        # Getting the block size
-        block_size = unpack("I", self._bgen_file.read(4))[0]
-        if block_size + self._header_size > self._offset:
-            raise ValueError(
-                "{}: invalid BGEN file".format(self._bgen_file.name)
-            )
-
-        # Checking the number of samples
-        n = unpack("I", self._bgen_file.read(4))[0]
-        if n != self.nb_samples:
-            raise ValueError(
-                "{}: invalid BGEN file".format(self._bgen_file.name)
-            )
-
-        # Getting the sample information
-        samples = []
-        for i in range(self.nb_samples):
-            size = unpack("H", self._bgen_file.read(2))[0]
-            samples.append(self._bgen_file.read(size).decode())
-        self.samples = tuple(samples)
-
-        # Just a check with the header
-        if len(self.samples) != self.get_number_samples():
-            raise ValueError("{}: number of samples different between header "
-                             "and sample block".format(self._bgen_file.name))
-
-    def _parse_sample_file(self, fn):
-        """Parses the sample file."""
-        # Reading the samples
-        with open(fn, "r") as f:
-            sample_data = [_.split(" ") for _ in f.read().splitlines()]
-
-        # Splitting the header and data
-        header = {name: i for i, name in enumerate(sample_data[0])}
-        sample_data = sample_data[2:]
-
-        # Checking the header
-        if ("ID_1" not in header) or ("ID_2" not in header):
-            raise ValueError("{}: wrong header for sample file".format(fn))
-
-        # Keeping only the IDs
-        id1 = [_[header["ID_1"]] for _ in sample_data]
-        id2 = [_[header["ID_2"]] for _ in sample_data]
-
-        # We usually keep the ID_2 since it's the IID and not the FID
-        self.samples = tuple(id2)
-        if len(id2) != len(set(id2)):
-            logging.info(
-                "Setting the index as 'fid_iid' because the individual IDs "
-                "are not unique."
-            )
-            self.samples = tuple(
-                ["{}_{}".format(fid, iid) for fid, iid in zip(id1, id2)]
-            )
-
-            # Last check
-            if len(self.samples) != len(set(self.samples)):
-                raise ValueError("{}: duplicated fid_iid".format(fn))
-
-        # Checking with the number of samples in the BGEN file
-        if len(self.samples) != self.get_number_samples():
-            raise ValueError("{}: invalid number of samples compared to BGEN "
-                             "file".format(fn))
-
-    @staticmethod
-    def _bits_to_int(bits):
-        """Converts bits to int."""
-        result = 0
-        for bit in bits:
-            result = (result << 1) | bit
-        return result
-
-    def _no_decompress(data):
-        """No compression, so we return the data as is."""
-        return data
-
-    def _seek_to_first_variant(self):
-        """Seeks to the first variant of the file."""
-        self._bgen_index.execute(
-            "SELECT file_start_position "
-            "FROM Variant "
-            "ORDER BY file_start_position "
-            "LIMIT 1",
-        )
-        self._bgen_file.seek(self._bgen_index.fetchone()[0])
+        self._bgen.close()
 
     def get_variant_genotypes(self, variant):
         """Get the genotypes from a well formed variant instance.
@@ -275,230 +86,31 @@ class BGENReader(GenotypesReader):
         if self.chrom is not None and chrom == self.chrom:
             chrom = "NA"
 
-        self._bgen_index.execute(
-            "SELECT allele1, allele2, file_start_position "
-            "FROM Variant "
-            "WHERE chromosome = ? AND position = ?",
-            (CHROM_STR_DECODE.get(chrom, chrom), variant.pos),
-        )
-
-        # Fetching all the variants that matches the required one
-        variant_info = self._bgen_index.fetchall()
-
         # Getting the results
         results = []
-        for a1, a2, seek_pos in variant_info:
+        iterator = self._bgen.iter_variants_in_region(
+            CHROM_STR_DECODE.get(chrom, chrom), variant.pos, variant.pos,
+        )
+        for info, dosage in iterator:
             if (variant.alleles is None or
-                    variant.iterable_alleles_eq([a1, a2])):
-                self._bgen_file.seek(seek_pos)
-                results.append(self._get_curr_variant_genotypes())
+                    variant.iterable_alleles_eq([info.a1, info.a2])):
+                results.append(Genotypes(
+                    Variant(
+                        info.name,
+                        CHROM_STR_ENCODE.get(info.chrom, info.chrom),
+                        info.pos, [info.a1, info.a2],
+                    ),
+                    dosage,
+                    reference=info.a1,
+                    coded=info.a2,
+                    multiallelic=True,
+                ))
 
         # If there are no results
         if not results:
             logging.variant_name_not_found(variant)
 
         return results
-
-    def _get_curr_variant_info(self):
-        """Gets the current variant's information."""
-        if self._layout == 1:
-            n = unpack("I", self._bgen_file.read(4))[0]
-            if n != self.nb_samples:
-                raise ValueError(
-                    "{}: invalid BGEN file".format(self._bgen_file.name),
-                )
-
-        # Reading the variant id
-        var_id = self._bgen_file.read(
-            unpack("H", self._bgen_file.read(2))[0]
-        ).decode()
-
-        # Reading the variant rsid
-        rs_id = self._bgen_file.read(
-            unpack("H", self._bgen_file.read(2))[0]
-        ).decode()
-
-        # Reading the chromosome
-        chrom = self._bgen_file.read(
-            unpack("H", self._bgen_file.read(2))[0]
-        ).decode()
-
-        # Reading the position
-        pos = unpack("I", self._bgen_file.read(4))[0]
-
-        # Getting the number of alleles
-        nb_alleles = 2
-        if self._layout == 2:
-            nb_alleles = unpack("H", self._bgen_file.read(2))[0]
-
-        # Getting the alleles
-        alleles = []
-        for _ in range(nb_alleles):
-            alleles.append(self._bgen_file.read(
-                unpack("I", self._bgen_file.read(4))[0]
-            ).decode())
-
-        return var_id, rs_id, chrom, pos, tuple(alleles)
-
-    def _get_curr_variant_dosage(self):
-        """Gets the current variant's dosage."""
-        dosage = None
-        if self._layout == 1:
-            c = self.nb_samples
-            if self._is_compressed:
-                c = unpack("I", self._bgen_file.read(4))[0]
-
-            # Getting the probabilities
-            probs = np.fromstring(
-                self._decompress(self._bgen_file.read(c)),
-                dtype="u2",
-            ) / 32768
-            probs.shape = (self.nb_samples, 3)
-
-            # Computing the dosage
-            dosage = self._layout_1_probs_to_dosage(probs)
-
-        else:
-            # The total length C of the rest of the data for this variant
-            c = unpack("I", self._bgen_file.read(4))[0]
-
-            # The number of bytes to read
-            to_read = c
-
-            # D = C if no compression
-            d = c
-            if self._is_compressed:
-                # The total length D of the probability data after
-                # decompression
-                d = unpack("I", self._bgen_file.read(4))[0]
-                to_read = c - 4
-
-            # Reading the data and checking
-            data = self._decompress(self._bgen_file.read(to_read))
-            if len(data) != d:
-                raise ValueError(
-                    "{}: invalid BGEN file".format(self._bgen_file.name)
-                )
-
-            # Checking the number of samples
-            n = unpack("I", data[:4])[0]
-            if n != self.nb_samples:
-                raise ValueError(
-                    "{}: invalid BGEN file".format(self._bgen_file.name)
-                )
-            data = data[4:]
-
-            # Checking the number of alleles (we only accept 2 alleles)
-            nb_alleles = unpack("H", data[:2])[0]
-            if nb_alleles != 2:
-                raise ValueError(
-                    "{}: only two alleles are "
-                    "supported".format(self._bgen_file.name)
-                )
-            data = data[2:]
-
-            # TODO: Check ploidy for sexual chromosomes
-            # The minimum and maximum for ploidy (we only accept ploidy of 2)
-            min_ploidy, max_ploidy = data[:2]
-            if min_ploidy != 2 and max_ploidy != 2:
-                raise ValueError(
-                    "{}: only accepting ploidy of "
-                    "2".format(self._bgen_file.name)
-                )
-            data = data[2:]
-
-            # Check the list of N bytes for missingness (since we assume only
-            # diploid values for each sample)
-            ploidy_info = data[:n]
-            ploidy_info = np.unpackbits(
-                np.array([[_] for _ in ploidy_info], dtype=np.uint8),
-                axis=1,
-            )
-            missing_data = ploidy_info[:, 0] == 1
-            data = data[n:]
-
-            # TODO: Permit phased data
-            # Is the data phased?
-            is_phased = data[0] == 1
-            if is_phased:
-                raise ValueError(
-                    "{}: only accepting unphased "
-                    "data".format(self._bgen_file.name)
-                )
-            data = data[1:]
-
-            # The number of bytes used to encode each probabilities
-            b = data[0]
-            if b % 8 != 0:
-                raise ValueError(
-                    "{}: only multuple of 8 encoding is "
-                    "accepted".format(self._bgen_file.name)
-                )
-            data = data[1:]
-
-            # Reading the probabilities (don't forget we allow only for diploid
-            # values)
-            probs = np.fromstring(
-                data, dtype="u{}".format(b // 8)
-            ) / (2**b - 1)
-            probs.shape = (self.nb_samples, 2)
-
-            # Computing the dosage
-            dosage = self._layout_2_probs_to_dosage(probs)
-
-            # Setting the missing to NaN
-            dosage[missing_data] = np.nan
-
-        return dosage
-
-    def _get_curr_variant_genotypes(self):
-        """Gets the current genotypes."""
-        # Getting the variant's information
-        var_id, rs_id, chrom, pos, alleles = self._get_curr_variant_info()
-
-        # Checking the chromosome
-        if self.chrom is not None:
-            chrom = self.chrom
-
-        # Getting the variant's dosage
-        dosage = self._get_curr_variant_dosage()
-
-        # TODO: Check multiallelic status below
-        return Genotypes(
-            Variant(rs_id, CHROM_STR_ENCODE.get(chrom, chrom), pos,
-                    alleles),
-            dosage,
-            reference=alleles[0],
-            coded=alleles[1],
-            multiallelic=False,
-        )
-
-    def _layout_1_probs_to_dosage(self, probs):
-        """Transforms probability values to dosage (from layout 1)"""
-        # Constructing the dosage
-        dosage = 2 * probs[:, 2] + probs[:, 1]
-        if self.prob_t > 0:
-            dosage[~np.any(probs >= self.prob_t, axis=1)] = np.nan
-
-        return dosage
-
-    def _layout_2_probs_to_dosage(self, probs):
-        """Transforms probability values to dosage (from layout 2)."""
-        # Computing the last genotype's probabilities
-        last_probs = 1 - np.sum(probs, axis=1)
-
-        # Constructing the dosage
-        dosage = 2 * last_probs + probs[:, 1]
-
-        # Setting low quality to NaN
-        if self.prob_t > 0:
-            good_probs = (
-                np.any(probs >= self.prob_t, axis=1) |
-                (last_probs >= self.prob_t)
-            )
-            dosage[~good_probs] = np.nan
-
-        return dosage
 
     def iter_genotypes(self):
         """Iterates on available markers.
@@ -507,31 +119,26 @@ class BGENReader(GenotypesReader):
             Genotypes instances.
 
         """
-        # Seeking at the beginning of the variants
-        self._seek_to_first_variant()
-
-        # Checking the number of samples
-        for i in range(self.nb_variants):
-            yield self._get_curr_variant_genotypes()
+        for info, dosage in self._bgen.iter_variants():
+            yield Genotypes(
+                Variant(
+                    info.name, CHROM_STR_ENCODE.get(info.chrom, info.chrom),
+                    info.pos, [info.a1, info.a2],
+                ),
+                dosage,
+                reference=info.a1,
+                coded=info.a2,
+                multiallelic=True,
+            )
 
     def iter_variants(self):
         """Iterate over marker information."""
-        self._bgen_index.execute(
-            "SELECT chromosome, position, rsid, allele1, allele2 FROM Variant",
-        )
-
-        # The array size
-        array_size = 10000
-
-        # Fetching the results
-        results = self._bgen_index.fetchmany(array_size)
-        while results:
-            for chrom, pos, rsid, a1, a2 in results:
-                if self.chrom is not None:
-                    chrom = self.chrom
-                yield Variant(rsid, CHROM_STR_ENCODE.get(chrom, chrom),
-                              pos, [a1, a2])
-            results = self._bgen_index.fetchmany(array_size)
+        for variant in self._bgen.iter_variant_info():
+            yield Variant(
+                variant.name,
+                CHROM_STR_ENCODE.get(variant.chrom, variant.chrom),
+                variant.pos, [variant.a1, variant.a2],
+            )
 
     def get_variants_in_region(self, chrom, start, end):
         """Iterate over variants in a region."""
@@ -539,20 +146,20 @@ class BGENReader(GenotypesReader):
             # We are going to search for 'NA' since the chromosome was set
             chrom = "NA"
 
-        self._bgen_index.execute(
-            "SELECT file_start_position "
-            "FROM Variant "
-            "WHERE chromosome = ? AND position >= ? AND position <= ?",
-            (CHROM_STR_DECODE.get(chrom, chrom), start, end),
+        iterator = self._bgen.iter_variants_in_region(
+            CHROM_STR_DECODE.get(chrom, chrom), start, end,
         )
-
-        # Fetching all the seek positions
-        seek_positions = [_[0] for _ in self._bgen_index.fetchall()]
-
-        # Fetching seek positions, we return the variant
-        for seek_pos in seek_positions:
-            self._bgen_file.seek(seek_pos)
-            yield self._get_curr_variant_genotypes()
+        for info, dosage in iterator:
+            yield Genotypes(
+                Variant(
+                    info.name, CHROM_STR_ENCODE.get(info.chrom, info.chrom),
+                    info.pos, [info.a1, info.a2],
+                ),
+                dosage,
+                reference=info.a1,
+                coded=info.a2,
+                multiallelic=True,
+            )
 
     def get_variant_by_name(self, name):
         """Get the genotype of a marker using it's name.
@@ -564,21 +171,24 @@ class BGENReader(GenotypesReader):
             list: A list of Genotypes.
 
         """
-        self._bgen_index.execute(
-            "SELECT file_start_position FROM Variant WHERE rsid = ?",
-            (name, )
-        )
-
-        # Fetching all the seek positions
-        seek_positions = [_[0] for _ in self._bgen_index.fetchall()]
-
-        # Constructing the results
         results = []
-        for seek_pos in seek_positions:
-            self._bgen_file.seek(seek_pos)
-            results.append(self._get_curr_variant_genotypes())
 
-        if not results:
+        try:
+            for info, dosage in self._bgen.get_variant(name):
+                results.append(Genotypes(
+                    Variant(
+                        info.name,
+                        CHROM_STR_ENCODE.get(info.chrom, info.chrom),
+                        info.pos,
+                        [info.a1, info.a2],
+                    ),
+                    dosage,
+                    reference=info.a1,
+                    coded=info.a2,
+                    multiallelic=False,
+                ))
+
+        except ValueError:
             logging.variant_name_not_found(name)
 
         return results
@@ -590,7 +200,7 @@ class BGENReader(GenotypesReader):
             int: The number of samples.
 
         """
-        return self.nb_samples
+        return self._bgen.nb_samples
 
     def get_number_variants(self):
         """Returns the number of markers.
@@ -599,7 +209,7 @@ class BGENReader(GenotypesReader):
             int: The number of markers.
 
         """
-        return self.nb_variants
+        return self._bgen.nb_variants
 
     def get_samples(self):
         """Returns the list of samples."""

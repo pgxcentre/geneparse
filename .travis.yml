@@ -21,6 +21,7 @@ before_install:
 install:
   - conda install -q cython numpy pandas biopython
   - conda install -q pyplink -c http://statgen.org/wp-content/uploads/Softwares/pyplink
+  - conda install -q pybgen -c http://statgen.org/wp-content/uploads/Softwares/pybgen
   - pip install --no-deps cyvcf2
   - conda list
 

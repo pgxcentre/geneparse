@@ -27,7 +27,7 @@ BGEN file reader based on PyBGEN.
 # THE SOFTWARE.
 
 
-from pybgen import PyBGEN
+from pybgen import PyBGEN, ParallelPyBGEN
 
 from .. import logging
 from ..core import GenotypesReader, Genotypes, Variant
@@ -42,7 +42,7 @@ CHROM_STR_DECODE = {v: k for k, v in CHROM_STR_ENCODE.items()}
 
 class BGENReader(GenotypesReader):
     def __init__(self, filename, sample_filename=None, chromosome=None,
-                 probability_threshold=0.9):
+                 probability_threshold=0.9, cpus=1):
         """BGEN file reader.
 
         Args:
@@ -51,8 +51,12 @@ class BGENReader(GenotypesReader):
             probability_threshold (float): The probability threshold.
 
         """
-        # The BGEN reader
-        self._bgen = PyBGEN(filename, prob_t=probability_threshold)
+        # The BGEN reader (parallel or no)
+        if cpus == 1:
+            self._bgen = PyBGEN(filename, prob_t=probability_threshold)
+        else:
+            self._bgen = ParallelPyBGEN(filename, prob_t=probability_threshold,
+                                        cpus=cpus)
 
         # Getting the samples
         self.samples = self._bgen.samples

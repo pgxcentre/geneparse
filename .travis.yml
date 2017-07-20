@@ -7,7 +7,8 @@ python:
 
 install:
   - pip install -U pip setuptools
-  - pip install -U cython numpy pandas biopython pyplink pybgen cyvcf2
+  - pip install -U cython
+  - pip install -U numpy pandas biopython pyplink pybgen cyvcf2
   - pip list
 
 script: python setup.py test

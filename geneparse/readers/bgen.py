@@ -218,3 +218,41 @@ class BGENReader(GenotypesReader):
     def get_samples(self):
         """Returns the list of samples."""
         return list(self.samples)
+
+    def _parse_sample_file(self, sample_filename):
+        # Reading the sample file
+        samples = []
+        with open(sample_filename) as f:
+            header = None
+            for line in f:
+                row = line.rstrip("\r\n").split(" ")
+
+                if header is None:
+                    header = {name: i for i, name in enumerate(row)}
+                    for name in ("ID_1", "ID_2"):
+                        if name not in header:
+                            raise ValueError("{}: no column named {}".format(
+                                name,
+                            ))
+                    continue
+
+                # The first row is not a sample
+                if row[:2] == ["0", "0"]:
+                    continue
+
+                samples.append((row[header["ID_1"]], row[header["ID_2"]]))
+
+        # Checking ID_2 is unique
+        id_2 = tuple(_[1] for _ in samples)
+        if len(set(id_2)) == len(samples):
+            self.samples = id_2
+
+        else:
+            logging.info(
+                "Setting the index as 'fid_iid' because the individual IDs "
+                "are not unique."
+            )
+
+            self.samples = tuple(
+                "{}_{}".format(*_) for _ in samples
+            )

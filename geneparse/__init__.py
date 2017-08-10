@@ -83,5 +83,6 @@ parsers = {
     "chrom-split-impute2": _SplitChromosomeReaderFactory(
         impute2.Impute2Reader
     ),
+    "chrom-split-bgen": _SplitChromosomeReaderFactory(bgen.BGENReader),
     "dataframe": dataframe.DataFrameReader,
 }

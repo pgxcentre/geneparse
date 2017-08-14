@@ -27,6 +27,8 @@ Define the API for geneparse.
 # THE SOFTWARE.
 
 
+import io
+
 import numpy as np
 
 from .exceptions import InvalidChromosome
@@ -66,7 +68,7 @@ class Variant(object):
     __slots__ = ("name", "chrom", "pos", "alleles")
 
     def __init__(self, name, chrom, pos, alleles):
-        self.name = str(name)
+        self.name = str(name) if name is not None else None
         self.chrom = Variant._encode_chr(chrom)
         self.pos = int(pos)
 
@@ -248,6 +250,25 @@ class Genotypes(object):
             "<Genotypes for {} Reference:{} Coded:{}, {}>"
             "".format(self.variant, self.reference, self.coded, self.genotypes)
         )
+
+    def __setstate__(self, state):
+        for field in self.__slots__:
+            if field != "genotypes":
+                setattr(self, field, state[field])
+
+        self.genotypes = np.load(io.BytesIO(state["genotypes_data"]))["arr_0"]
+
+    def __getstate__(self):
+        state = {}
+        for field in self.__slots__:
+            if field != "genotypes":
+                state[field] = getattr(self, field)
+
+        genotypes_file = io.BytesIO()
+        np.savez_compressed(genotypes_file, self.genotypes)
+        state["genotypes_data"] = genotypes_file.getvalue()
+
+        return state
 
 
 class SplitChromosomeReader(object):

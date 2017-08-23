@@ -37,7 +37,6 @@ from .. import utils
 from ..core import Variant, Genotypes
 
 
-# def genotype_to_df(g, samples, as_string=False):
 class TestUtils(unittest.TestCase):
     def test_genotype_to_df(self):
         g = simulate_genotypes(0.2, 100, call_rate=1)

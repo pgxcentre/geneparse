@@ -77,17 +77,21 @@ class TestUtils(unittest.TestCase):
 
         df = utils.genotype_to_df(g, samples, as_string=True)
 
+        rr = "{}/{}".format(ref_allele, ref_allele)
+        rc = "{}/{}".format(ref_allele, alt_allele)
+        cc = "{}/{}".format(alt_allele, alt_allele)
+
         homo_maj_alleles = set(df.loc[homo_ref, g.variant.name])
         self.assertEqual(len(homo_maj_alleles), 1)
-        self.assertEqual(list(homo_maj_alleles)[0], ref_allele + ref_allele)
+        self.assertEqual(list(homo_maj_alleles)[0], rr)
 
         hetero_alleles = set(df.loc[hetero, g.variant.name])
         self.assertEqual(len(hetero_alleles), 1)
-        self.assertEqual(list(hetero_alleles)[0], ref_allele + alt_allele)
+        self.assertEqual(list(hetero_alleles)[0], rc)
 
         homo_min_alleles = set(df.loc[homo_coded, g.variant.name])
         self.assertEqual(len(homo_min_alleles), 1)
-        self.assertEqual(list(homo_min_alleles)[0], alt_allele + alt_allele)
+        self.assertEqual(list(homo_min_alleles)[0], cc)
 
     def test_genotype_to_df_alleles_dosage(self):
         v = Variant(
@@ -111,9 +115,9 @@ class TestUtils(unittest.TestCase):
         r = geno.reference
         c = geno.coded
 
-        rr = r + r
-        rc = r + c
-        cc = c + c
+        rr = "{}/{}".format(r, r)
+        rc = "{}/{}".format(r, c)
+        cc = "{}/{}".format(c, c)
 
         expected = pd.DataFrame(
             [rr, rc, rc, np.nan, cc, cc],

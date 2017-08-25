@@ -27,6 +27,8 @@ Define the API for geneparse.
 # THE SOFTWARE.
 
 
+import io
+
 import numpy as np
 
 from .exceptions import InvalidChromosome
@@ -66,7 +68,7 @@ class Variant(object):
     __slots__ = ("name", "chrom", "pos", "alleles")
 
     def __init__(self, name, chrom, pos, alleles):
-        self.name = str(name)
+        self.name = str(name) if name is not None else None
         self.chrom = Variant._encode_chr(chrom)
         self.pos = int(pos)
 
@@ -130,6 +132,19 @@ class Variant(object):
     def alleles_eq(self, other):
         return self.iterable_alleles_eq(other.alleles)
 
+    def complement_alleles(self):
+        """Complement the alleles of this variant.
+
+        This will call this module's `complement_alleles` function.
+
+        Note that this will not create a new object, but modify the state of
+        the current instance.
+
+        """
+        self.alleles = self._encode_alleles(
+            [complement_alleles(i) for i in self.alleles]
+        )
+
     def __eq__(self, other):
         """Tests for the equality between two variants.
 
@@ -147,8 +162,8 @@ class Variant(object):
         return locus_match and overlap
 
     def __repr__(self):
-        return "<Variant chr{}:{}_{}>".format(self.chrom, self.pos,
-                                              self.alleles)
+        return "<{} chr{}:{}_{}>".format(self.__class__.__name__, self.chrom,
+                                         self.pos, self.alleles)
 
 
 class ImputedVariant(Variant):
@@ -158,7 +173,7 @@ class ImputedVariant(Variant):
         super().__init__(name, chrom, pos, alleles)
         self.quality = float(quality)
 
-        if 0 <= self.quality <= 1:
+        if not 0 <= self.quality <= 1:
             raise ValueError(
                 "The 'quality' field for ImputedVariant instances is expected "
                 "to be a float value between 0 and 1."
@@ -235,6 +250,25 @@ class Genotypes(object):
             "<Genotypes for {} Reference:{} Coded:{}, {}>"
             "".format(self.variant, self.reference, self.coded, self.genotypes)
         )
+
+    def __setstate__(self, state):
+        for field in self.__slots__:
+            if field != "genotypes":
+                setattr(self, field, state[field])
+
+        self.genotypes = np.load(io.BytesIO(state["genotypes_data"]))["arr_0"]
+
+    def __getstate__(self):
+        state = {}
+        for field in self.__slots__:
+            if field != "genotypes":
+                state[field] = getattr(self, field)
+
+        genotypes_file = io.BytesIO()
+        np.savez_compressed(genotypes_file, self.genotypes)
+        state["genotypes_data"] = genotypes_file.getvalue()
+
+        return state
 
 
 class SplitChromosomeReader(object):
@@ -408,6 +442,23 @@ class GenotypesReader(object):
     def get_number_variants(self):
         """Return the number of variants in the file."""
         raise NotImplementedError()
+
+
+def complement_alleles(s):
+    """Complement an allele string.
+
+    This will apply the following translation table to the alleles:
+
+        A -> T
+        G -> C
+
+    and vice versa.
+
+    Other characters will be left as-is.
+
+    """
+    trans = str.maketrans("ATGCatgc", "TACGtacg")
+    return s.translate(trans)
 
 
 def _np_eq(a, b):

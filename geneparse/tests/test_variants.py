@@ -103,3 +103,14 @@ class TestVariant(unittest.TestCase):
             Variant("rs1234", None, 1234, "AG"),
             Variant("rs1234", None, 1234, "AG"),
         )
+
+    def test_variant_complement(self):
+        v = Variant("rs1234", 1, 1234, ["CGTA", "ATTGCGC"])
+        v.complement_alleles()
+        expected = set(["TAACGCG", "GCAT"])
+        self.assertEqual(v.alleles_set, expected)
+
+        v = Variant(None, 1, 1234, ["A", "G", "T", "Z"])
+        v.complement_alleles()
+        expected = set(["T", "C", "A", "Z"])
+        self.assertEqual(v.alleles_set, expected)

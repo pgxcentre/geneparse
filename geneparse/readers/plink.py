@@ -27,15 +27,11 @@ Plink file reader based on PyPlink.
 # THE SOFTWARE.
 
 
-import logging
-
 from pyplink import PyPlink
 import numpy as np
 
 from ..core import GenotypesReader, Variant, Genotypes
-
-
-logger = logging.getLogger(__name__)
+from .. import logging
 
 
 CHROM_STR_TO_INT = {str(c): c for c in range(1, 23)}
@@ -71,7 +67,7 @@ class PlinkReader(GenotypesReader):
         try:
             self.fam = self.fam.set_index("iid", verify_integrity=True)
         except ValueError:
-            logger.info(
+            logging.info(
                 "Setting the index as 'fid_iid' because the individual IDs "
                 "are not unique."
             )
@@ -115,7 +111,7 @@ class PlinkReader(GenotypesReader):
         ]
 
         if info.shape[0] == 0:
-            _log_not_found(variant)
+            logging.variant_not_found(variant)
             return []
 
         elif info.shape[0] == 1:
@@ -130,7 +126,7 @@ class PlinkReader(GenotypesReader):
         variant_alleles = variant._encode_alleles([info.a2, info.a1])
         if (_check_alleles and variant_alleles != variant.alleles):
             # Variant with requested alleles is unavailable.
-            _log_not_found(variant)
+            logging.variant_not_found(variant)
             return []
 
         geno = self._normalize_missing(self.bed.get_geno_marker(info.name))
@@ -247,7 +243,7 @@ class PlinkReader(GenotypesReader):
             else:
                 # The variant is not in the BIM file, so we return an empty
                 # list
-                _log_not_found(name)
+                logging.variant_name_not_found(name)
                 return []
 
         else:
@@ -284,7 +280,3 @@ class PlinkReader(GenotypesReader):
         g = g.astype(float)
         g[g == -1.0] = np.nan
         return g
-
-
-def _log_not_found(o):
-    logger.warning("Variant {} was not found".format(o))

@@ -27,12 +27,8 @@ DataFrame file reader.
 # THE SOFTWARE.
 
 
-import logging
-
 from ..core import GenotypesReader, Genotypes, Variant
-
-
-logger = logging.getLogger(__name__)
+from .. import logging
 
 
 class DataFrameReader(GenotypesReader):
@@ -91,7 +87,7 @@ class DataFrameReader(GenotypesReader):
         except KeyError:
             # The variant is not in the data, so we return an empty
             # list
-            logger.warning("Variant {} was not found".format(name))
+            logging.variant_name_not_found(name)
             return []
 
         else:

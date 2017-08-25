@@ -29,7 +29,6 @@ IMPUTE2 file reader.
 
 import io
 import zlib
-import logging
 from os import path
 from collections import Counter
 
@@ -37,9 +36,7 @@ import numpy as np
 import pandas as pd
 
 from ..core import GenotypesReader, Variant, Genotypes, VALID_CHROMOSOMES
-
-
-logger = logging.getLogger(__name__)
+from .. import logging
 
 
 CHROM_STR_TO_INT = {str(c): c for c in range(1, 23)}
@@ -84,7 +81,7 @@ class Impute2Reader(GenotypesReader):
             self.samples = self.samples.set_index("iid", verify_integrity=True)
 
         except ValueError:
-            logger.info(
+            logging.info(
                 "Setting the index as 'fid_iid' because the individual IDs "
                 "are not unique."
             )
@@ -136,11 +133,7 @@ class Impute2Reader(GenotypesReader):
                 }
 
                 # Logging a warning
-                logger.warning("Duplicated markers found")
-                for marker, count in duplicated_marker_counts.iteritems():
-                    logger.warning("  - {}: {:,d} times".format(marker, count))
-                logger.warning("Appending ':dupX' to the duplicated markers "
-                               "according to their location in the file")
+                logging.found_duplicates(duplicated_marker_counts.iteritems())
 
                 # Renaming the markers
                 counter = Counter()
@@ -219,7 +212,7 @@ class Impute2Reader(GenotypesReader):
         ]
 
         if variant_info.shape[0] == 0:
-            _log_not_found(variant)
+            logging.variant_not_found(variant)
             return []
 
         elif variant_info.shape[0] == 1:
@@ -242,7 +235,7 @@ class Impute2Reader(GenotypesReader):
         ])
         if (_check_alleles and variant_alleles != variant.alleles):
             # Variant with requested alleles is unavailable.
-            _log_not_found(variant)
+            logging.variant_not_found(variant)
             return []
 
         return [genotypes]
@@ -386,7 +379,7 @@ class Impute2Reader(GenotypesReader):
 
                 else:
                     # The variant is not in the index
-                    _log_not_found(name)
+                    logging.variant_name_not_found(name)
                     return []
 
         # Seeking to the right place in the file
@@ -417,8 +410,8 @@ class Impute2Reader(GenotypesReader):
         else:
             # Location was not in the index, so we check one marker before and
             # after the one we found
-            logger.warning("Multiallelic variants are not detected on "
-                           "unindexed files.")
+            logging.warning("Multiallelic variants are not detected on "
+                            "unindexed files.")
 
     def get_number_samples(self):
         """Returns the number of samples.
@@ -676,7 +669,3 @@ def has_index(fn):
 
     """
     return path.isfile(get_index_fn(fn))
-
-
-def _log_not_found(o):
-    logger.warning("Variant '{}' not found.".format(o))

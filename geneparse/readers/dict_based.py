@@ -5,6 +5,8 @@ This is useful when you have pickled genotypes instances, for example.
 
 """
 
+import pickle
+
 
 from ..core import GenotypesReader, Variant
 from .. import logging
@@ -54,3 +56,25 @@ class DictBasedReader(GenotypesReader):
 
     def get_number_variants(self):
         return len(self._dict)
+
+
+class PickleBasedReader(DictBasedReader):
+    def __init__(self, filename):
+        with open(filename, "rb") as f:
+            data = pickle.load(f)
+
+        samples = data.pop("samples")
+
+        geno = {}
+        i = 0
+        for v in data.values():
+            if v.variant.name:
+                name = v.variant.name
+            else:
+                name = "Variant{}".format(i)
+                i += 1
+
+            geno[name] = v
+
+        super().__init__(geno, samples)
+

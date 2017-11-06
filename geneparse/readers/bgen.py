@@ -53,8 +53,10 @@ class BGENReader(GenotypesReader):
         """
         # The BGEN reader (parallel or no)
         if cpus == 1:
+            self.is_parallel = False
             self._bgen = PyBGEN(filename, prob_t=probability_threshold)
         else:
+            self.is_parallel = True
             self._bgen = ParallelPyBGEN(filename, prob_t=probability_threshold,
                                         cpus=cpus)
 
@@ -164,6 +166,28 @@ class BGENReader(GenotypesReader):
                 coded=info.a2,
                 multiallelic=True,
             )
+
+    def iter_variants_by_names(self, names):
+        """Iterates over the genotypes for variants using a list of names.
+
+        Args:
+            names (list): The list of names for variant extraction.
+
+        """
+        if not self.is_parallel:
+            yield from super().iter_variants_by_names(names)
+
+        else:
+            for info, dosage in self._bgen.iter_variants_by_names(names):
+                yield Genotypes(
+                    Variant(info.name,
+                            CHROM_STR_ENCODE.get(info.chrom, info.chrom),
+                            info.pos, [info.a1, info.a2]),
+                    dosage,
+                    reference=info.a1,
+                    coded=info.a2,
+                    multiallelic=True,
+                )
 
     def get_variant_by_name(self, name):
         """Get the genotype of a marker using it's name.

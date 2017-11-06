@@ -429,6 +429,17 @@ class GenotypesReader(object):
         """
         raise NotImplementedError()
 
+    def iter_variants_by_names(self, names):
+        """Iterates over the genotypes for variants using a list of names.
+
+        Args:
+            names (list): The list of names for variant extraction.
+
+        """
+        for name in names:
+            for result in self.get_variant_by_name(name):
+                yield result
+
     def get_variants_in_region(self, chrom, start, end):
         """Get the variants in a region.
 

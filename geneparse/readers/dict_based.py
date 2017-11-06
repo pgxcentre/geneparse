@@ -18,15 +18,15 @@ class DictBasedReader(GenotypesReader):
         self.samples = samples
 
     def iter_genotypes(self):
-        return self._dict.values()
+        return (i.copy() for i in self._dict.values())
 
     def iter_variants(self):
         for g in self._dict.values():
-            yield g.variant
+            yield g.variant.copy()
 
     def get_variant_by_name(self, name):
         try:
-            return [self._dict[name]]
+            return [self._dict[name].copy()]
         except KeyError:
             logging.variant_name_not_found(name)
             return []
@@ -35,17 +35,18 @@ class DictBasedReader(GenotypesReader):
         out = []
         for g in self._dict.values():
             if g.variant == variant:
-                out.append(g)
+                out.append(g.copy())
         return out
 
     def get_variants_in_region(self, chrom, start, end):
         chrom = Variant._encode_chr(chrom)
+
         def _in_region(v):
             return (chrom == v.chrom and
                     start <= v.pos <= end)
 
         return [
-            g for g in self._dict.values() if _in_region(g.variant)
+            g.copy() for g in self._dict.values() if _in_region(g.variant)
         ]
 
     def get_samples(self):

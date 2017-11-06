@@ -105,6 +105,10 @@ class Variant(object):
     def copy(self):
         return Variant(self.name, self.chrom, self.pos, self.alleles)
 
+    def complementary_strand_copy(self):
+        alleles = [complement_alleles(i) for i in self.alleles]
+        return Variant(self.name, self.chrom, self.pos, alleles)
+
     def __hash__(self):
         # Two variants will have the same hash if they have the same
         # chromosome and position and **exactly the same alleles**.
@@ -211,6 +215,12 @@ class Genotypes(object):
                 "coded allele not in the known alleles for the variant "
                 "({} not in {}).".format(self.coded, variant.alleles)
             )
+
+    def copy(self):
+        return Genotypes(
+            self.variant, np.copy(self.genotypes), self.reference, self.coded,
+            self.multiallelic
+        )
 
     def flip(self):
         """Flips the reference and coded alleles of this instance."""

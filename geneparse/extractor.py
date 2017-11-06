@@ -33,9 +33,7 @@ class Extractor(object):
 
     def iter_genotypes(self):
         if self.by_names:
-            for name in self.names:
-                for genotype in self.parser.get_variant_by_name(name):
-                    yield genotype
+            yield from self.parser.iter_variants_by_names(self.names)
 
         # Assume i'm looking for A/C
         # I don't find it, but I find T/G with coded G

@@ -211,6 +211,39 @@ class TestBGEN(TestContainer, unittest.TestCase):
                 g.genotypes, expected["dosage"],
             )
 
+    def test_iter_variants_by_names(self):
+        """Tests getting the variations."""
+        # Getting 10 random variants
+        random_variants = random.sample(
+            list(self.expected_variants.values()), 10,
+        )
+
+        # Generating a map of variants
+        variant_map = {v.name: v for v in random_variants}
+
+        # Reading the file
+        seen_variants = set()
+        with self.reader_f() as f:
+            names = [v.name for v in random_variants]
+            for g in f.iter_variants_by_names(names):
+                # Getting the original variant
+                ori_variant = variant_map[g.variant.name]
+
+                # Checking the variant
+                self.assertEqual(g.variant, ori_variant)
+
+                # Checking the genotypes
+                expected = self.truth["variants"][g.variant.name]
+                self.assertEqual(g.reference, expected["variant"].a1)
+                self.assertEqual(g.coded, expected["variant"].a2)
+                np.testing.assert_array_almost_equal(
+                    g.genotypes, expected["dosage"],
+                )
+
+                seen_variants.add(g.variant.name)
+
+        self.assertEqual(set(variant_map.keys()), seen_variants)
+
     def test_get_variant_by_name_invalid(self):
         """Test getting an invalid variant by name."""
         with self.reader_f() as f:

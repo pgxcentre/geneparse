@@ -71,6 +71,12 @@ class PickleBasedReader(DictBasedReader):
         for v in data.values():
             if v.variant.name:
                 name = v.variant.name
+                if name in geno:
+                    name += "_2"
+                    logging.warning(
+                        "Renaming variant {variant} to {variant}_2 because "
+                        "there are duplicate names.".format(variant=v.variant)
+                    )
             else:
                 name = "Variant{}".format(i)
                 i += 1
@@ -78,4 +84,3 @@ class PickleBasedReader(DictBasedReader):
             geno[name] = v
 
         super().__init__(geno, samples)
-

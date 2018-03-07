@@ -54,7 +54,7 @@ class TestBGEN(TestContainer, unittest.TestCase):
         cls.reader_f = lambda x: bgen.BGENReader(BGEN_FILE)
 
         # Using truths from pybgen
-        cls.truth = truths["example.8bits.truths.txt.bz2"]
+        cls.truth = truths["dosage"]["example.8bits.truths.txt.bz2"]
 
         # The expected variant object
         cls.expected_variants = {
@@ -97,7 +97,7 @@ class TestBGEN(TestContainer, unittest.TestCase):
                 self.assertEqual(g.reference, expected["variant"].a1)
                 self.assertEqual(g.coded, expected["variant"].a2)
                 np.testing.assert_array_almost_equal(
-                    g.genotypes, expected["dosage"],
+                    g.genotypes, expected["data"],
                 )
 
         self.assertEqual(seen, set(self.expected_variants.keys()))
@@ -123,7 +123,7 @@ class TestBGEN(TestContainer, unittest.TestCase):
             self.assertEqual(g.reference, expected["variant"].a1)
             self.assertEqual(g.coded, expected["variant"].a2)
             np.testing.assert_array_almost_equal(
-                g.genotypes, expected["dosage"],
+                g.genotypes, expected["data"],
             )
 
     def test_get_na_biallelic_variant(self):
@@ -172,7 +172,7 @@ class TestBGEN(TestContainer, unittest.TestCase):
                 self.assertEqual(g.reference, expected["variant"].a1)
                 self.assertEqual(g.coded, expected["variant"].a2)
                 np.testing.assert_array_almost_equal(
-                    g.genotypes, expected["dosage"],
+                    g.genotypes, expected["data"],
                 )
 
                 seen.add(g.variant.name)
@@ -208,7 +208,7 @@ class TestBGEN(TestContainer, unittest.TestCase):
             self.assertEqual(g.reference, expected["variant"].a1)
             self.assertEqual(g.coded, expected["variant"].a2)
             np.testing.assert_array_almost_equal(
-                g.genotypes, expected["dosage"],
+                g.genotypes, expected["data"],
             )
 
     def test_iter_variants_by_names(self):
@@ -237,7 +237,7 @@ class TestBGEN(TestContainer, unittest.TestCase):
                 self.assertEqual(g.reference, expected["variant"].a1)
                 self.assertEqual(g.coded, expected["variant"].a2)
                 np.testing.assert_array_almost_equal(
-                    g.genotypes, expected["dosage"],
+                    g.genotypes, expected["data"],
                 )
 
                 seen_variants.add(g.variant.name)
@@ -262,7 +262,7 @@ class TestBGENParallel(TestBGEN, unittest.TestCase):
         cls.reader_f = lambda x: bgen.BGENReader(BGEN_FILE, cpus=2)
 
         # Using truths from pybgen
-        cls.truth = truths["example.8bits.truths.txt.bz2"]
+        cls.truth = truths["dosage"]["example.8bits.truths.txt.bz2"]
 
         # The expected variant object
         cls.expected_variants = {

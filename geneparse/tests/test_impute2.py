@@ -1,6 +1,4 @@
-"""
-Tests for the plink implementation.
-"""
+"""Tests for the plink implementation."""
 
 # This file is part of geneparse.
 #

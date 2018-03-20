@@ -1,5 +1,4 @@
-"""
-"""
+"""Test the extractor."""
 
 # This file is part of geneparse.
 #

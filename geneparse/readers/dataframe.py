@@ -1,6 +1,4 @@
-"""
-DataFrame file reader.
-"""
+"""DataFrame file reader."""
 
 # This file is part of geneparse.
 #

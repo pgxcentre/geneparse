@@ -1,6 +1,4 @@
-"""
-Tests for the plink implementation.
-"""
+"""Tests for the plink implementation."""
 
 # This file is part of geneparse.
 #
@@ -28,12 +26,10 @@ Tests for the plink implementation.
 
 
 import tempfile
-import os
 import pickle
 import unittest
 import logging
 
-from pkg_resources import resource_filename
 import numpy as np
 
 from .generic_tests import TestContainer
@@ -48,7 +44,9 @@ logging.disable(logging.CRITICAL)
 class TestDictBasedReader(TestContainer, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.reader_f = lambda x: dict_based.DictBasedReader(truth.genotypes, truth.samples)
+        cls.reader_f = lambda x: dict_based.DictBasedReader(
+            truth.genotypes, truth.samples,
+        )
 
     @unittest.skip("Unsupported because keys need to be unique.")
     def test_get_multiallelic_variant_by_name(self):

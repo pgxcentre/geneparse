@@ -1,6 +1,4 @@
-"""
-Reader for VCF files.
-"""
+"""Reader for VCF files."""
 
 # This file is part of geneparse.
 #

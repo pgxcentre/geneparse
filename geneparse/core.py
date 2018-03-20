@@ -1,6 +1,4 @@
-"""
-Define the API for geneparse.
-"""
+"""Define the API for geneparse."""
 
 # This file is part of geneparse.
 #

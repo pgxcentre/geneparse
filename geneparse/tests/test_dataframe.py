@@ -1,6 +1,4 @@
-"""
-Tests for the dataframe implementation.
-"""
+"""Tests for the dataframe implementation."""
 
 # This file is part of geneparse.
 #

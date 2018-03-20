@@ -1,5 +1,4 @@
-"""
-Ground truth for the genotype data available in the data/ directory.
+"""Ground truth for the genotype data available in the data/ directory.
 
 Some conventions are used:
 

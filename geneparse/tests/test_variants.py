@@ -1,6 +1,4 @@
-"""
-Tests the Variant object.
-"""
+"""Tests the Variant object."""
 
 # This file is part of geneparse.
 #

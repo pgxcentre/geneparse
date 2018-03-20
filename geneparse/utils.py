@@ -1,6 +1,4 @@
-"""
-Utilities
-"""
+"""Utilities"""
 
 # This file is part of geneparse.
 #

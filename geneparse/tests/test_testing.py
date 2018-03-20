@@ -1,6 +1,4 @@
-"""
-Tests the testing module.
-"""
+"""Tests the testing module."""
 
 # This file is part of geneparse.
 #

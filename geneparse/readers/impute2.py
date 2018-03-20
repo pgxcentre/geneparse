@@ -1,6 +1,4 @@
-"""
-IMPUTE2 file reader.
-"""
+"""IMPUTE2 file reader."""
 
 # This file is part of geneparse.
 #

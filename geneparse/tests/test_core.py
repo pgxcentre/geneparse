@@ -1,6 +1,4 @@
-"""
-Tests for the core data structures.
-"""
+"""Tests for the core data structures."""
 
 # This file is part of geneparse.
 #

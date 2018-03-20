@@ -1,6 +1,4 @@
-"""
-BGEN file reader based on PyBGEN.
-"""
+"""BGEN file reader based on PyBGEN."""
 
 # This file is part of geneparse.
 #

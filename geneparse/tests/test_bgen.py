@@ -1,6 +1,4 @@
-"""
-Abstract tests for container implementations.
-"""
+"""Abstract tests for container implementations."""
 
 # This file is part of geneparse.
 #

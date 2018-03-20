@@ -5,7 +5,7 @@
 # geneparse - Module to parse genetics data file
 
 `geneparse` is a module that helps developers to parse multiple genetics file
-format (*e.g.* Plink binary files, IMPUTE2 files and VCF).
+format (*e.g.* Plink binary files, IMPUTE2 files, BGEN and VCF).
 
 
 ## Dependencies

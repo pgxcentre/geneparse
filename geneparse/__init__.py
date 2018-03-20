@@ -86,4 +86,5 @@ parsers = {
     "chrom-split-bgen": _SplitChromosomeReaderFactory(bgen.BGENReader),
     "dataframe": dataframe.DataFrameReader,
     "dict-based": dict_based.DictBasedReader,
+    "pickle": dict_based.PickleBasedReader,
 }

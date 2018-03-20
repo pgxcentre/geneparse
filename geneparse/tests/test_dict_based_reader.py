@@ -1,6 +1,4 @@
-"""
-Tests for the plink implementation.
-"""
+"""Tests for the plink implementation."""
 
 # This file is part of geneparse.
 #
@@ -27,15 +25,17 @@ Tests for the plink implementation.
 # THE SOFTWARE.
 
 
-import os
+import tempfile
+import pickle
 import unittest
 import logging
 
-from pkg_resources import resource_filename
+import numpy as np
 
 from .generic_tests import TestContainer
 from . import truth
 from ..readers import dict_based
+from ..testing.simulation import simulate_genotypes
 
 
 logging.disable(logging.CRITICAL)
@@ -44,7 +44,9 @@ logging.disable(logging.CRITICAL)
 class TestDictBasedReader(TestContainer, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.reader_f = lambda x: dict_based.DictBasedReader(truth.genotypes, truth.samples)
+        cls.reader_f = lambda x: dict_based.DictBasedReader(
+            truth.genotypes, truth.samples,
+        )
 
     @unittest.skip("Unsupported because keys need to be unique.")
     def test_get_multiallelic_variant_by_name(self):
@@ -63,3 +65,38 @@ class TestDictBasedReader(TestContainer, unittest.TestCase):
             observed = set(f.iter_variants())
 
         self.assertEqual(expected, observed)
+
+    def test_pickle_reader(self):
+        # Create a valid pickle.
+        n = 100
+        samples = ["sample_{}".format(i + 1) for i in range(n)]
+        genotypes = {
+            "samples": samples,
+            "a": simulate_genotypes(0.21, n, 0.91),
+            "b": simulate_genotypes(0.15, n, 0.92),
+        }
+
+        with tempfile.NamedTemporaryFile("wb") as f:
+            pickle.dump(genotypes, f)
+            f.seek(0)
+
+            reader = dict_based.PickleBasedReader(f.name)
+
+            # The reader should be able to iterate over the genotypes.
+            g_a = reader.get_variant_genotypes(genotypes["a"].variant)
+            self.assertEqual(len(g_a), 1)
+            g_a = g_a[0]
+            self.assertEqual(g_a.variant, genotypes["a"].variant)
+            np.testing.assert_array_equal(
+                g_a.genotypes, genotypes["a"].genotypes
+            )
+
+            g_b = reader.get_variant_genotypes(genotypes["b"].variant)
+            self.assertEqual(len(g_b), 1)
+            g_b = g_b[0]
+            self.assertEqual(g_a.variant, genotypes["a"].variant)
+            np.testing.assert_array_equal(
+                g_b.genotypes, genotypes["b"].genotypes
+            )
+
+            self.assertEqual(len(list(reader.iter_genotypes())), 2)

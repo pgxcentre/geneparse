@@ -1,6 +1,4 @@
-"""
-Tests for the utilities.
-"""
+"""Tests for the utilities."""
 
 # This file is part of geneparse.
 #

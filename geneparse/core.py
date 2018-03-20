@@ -1,6 +1,4 @@
-"""
-Define the API for geneparse.
-"""
+"""Define the API for geneparse."""
 
 # This file is part of geneparse.
 #
@@ -104,6 +102,10 @@ class Variant(object):
 
     def copy(self):
         return Variant(self.name, self.chrom, self.pos, self.alleles)
+
+    def complementary_strand_copy(self):
+        alleles = [complement_alleles(i) for i in self.alleles]
+        return Variant(self.name, self.chrom, self.pos, alleles)
 
     def __hash__(self):
         # Two variants will have the same hash if they have the same
@@ -211,6 +213,12 @@ class Genotypes(object):
                 "coded allele not in the known alleles for the variant "
                 "({} not in {}).".format(self.coded, variant.alleles)
             )
+
+    def copy(self):
+        return Genotypes(
+            self.variant, np.copy(self.genotypes), self.reference, self.coded,
+            self.multiallelic
+        )
 
     def flip(self):
         """Flips the reference and coded alleles of this instance."""
@@ -418,6 +426,17 @@ class GenotypesReader(object):
 
         """
         raise NotImplementedError()
+
+    def iter_variants_by_names(self, names):
+        """Iterates over the genotypes for variants using a list of names.
+
+        Args:
+            names (list): The list of names for variant extraction.
+
+        """
+        for name in names:
+            for result in self.get_variant_by_name(name):
+                yield result
 
     def get_variants_in_region(self, chrom, start, end):
         """Get the variants in a region.

@@ -1,6 +1,4 @@
-"""
-Plink file reader based on PyPlink.
-"""
+"""Plink file reader based on PyPlink."""
 
 # This file is part of geneparse.
 #

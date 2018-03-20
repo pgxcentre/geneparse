@@ -10,14 +10,15 @@ format (*e.g.* Plink binary files, IMPUTE2 files and VCF).
 
 ## Dependencies
 
-The tool requires a standard [Python](http://python.org/) installation (3.3 or
+The tool requires a standard [Python](http://python.org/) installation (3.4 or
 higher are supported) with the following modules:
 
-1. [numpy](http://www.numpy.org/) version 1.11.0 or latest
-2. [pandas](http://pandas.pydata.org/) version 0.19.0 or latest
-3. [pyplink](https://github.com/lemieuxl/pyplink) version 1.3.4 or latest
-4. [cyvcf2](https://github.com/brentp/cyvcf2) version 0.7.4 or latest
-5. [biopython](https://github.com/biopython/biopython) version 1.68 or latest
+1. [numpy](http://www.numpy.org/)
+2. [pandas](http://pandas.pydata.org/)
+3. [pyplink](https://github.com/lemieuxl/pyplink)
+4. [pybgen](https://github.com/lemieuxl/pybgen)
+5. [cyvcf2](https://github.com/brentp/cyvcf2)
+6. [biopython](https://github.com/biopython/biopython)
 
 The tool has been tested on *Linux* only, but should work on *MacOS* operating
 systems as well.
@@ -47,9 +48,10 @@ To test the module, just perform the following command:
 
 ```console
 $ python -m geneparse.tests
-sssssss...ss.ss..............................
+.sssss.........s.sssss.........ssssssss...ss.ss...s...................
+..........................................
 ----------------------------------------------------------------------
-Ran 45 tests in 0.395s
+Ran 112 tests in 0.713s
 
-OK (skipped=11)
+OK (skipped=24)
 ```

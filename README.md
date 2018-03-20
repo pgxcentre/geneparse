@@ -55,3 +55,34 @@ Ran 112 tests in 0.713s
 
 OK (skipped=24)
 ```
+
+
+## Indexing
+
+Some genotype data require indexing for fast access. This can be done using
+geneparse.
+
+```console
+$ python -m geneparse.index --help
+usage: geneparse-indexer [-h] [--impute2 IMPUTE2 [IMPUTE2 ...]]
+                         [--bgen BGEN [BGEN ...]] [--legacy]
+
+Genotype file indexer.
+
+optional arguments:
+  -h, --help            show this help message and exit
+
+IMPUTE2 index:
+  --impute2 IMPUTE2 [IMPUTE2 ...]
+                        Index an IMPUTE2 genotype file format. The file can be
+                        plain text or bgzipped.
+
+BGEN index:
+  --bgen BGEN [BGEN ...]
+                        Index a BGEN genotype file format.
+  --legacy              Index the file using the '-with-rowid' option. This
+                        flag enables compatibility with SQLITE prior to
+                        version 3.8.2. See
+                        https://bitbucket.org/gavinband/bgen/wiki/bgenix for
+                        more information.
+```

@@ -79,7 +79,8 @@ IMPUTE2 index:
 
 BGEN index:
   --bgen BGEN [BGEN ...]
-                        Index a BGEN genotype file format.
+                        Index a BGEN genotype file. This requires 'bgenix' to
+                        be in the PATH.
   --legacy              Index the file using the '-with-rowid' option. This
                         flag enables compatibility with SQLITE prior to
                         version 3.8.2. See

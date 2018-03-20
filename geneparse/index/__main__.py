@@ -110,7 +110,8 @@ def parse_args():
     group = parser.add_argument_group("BGEN index")
     group.add_argument(
         "--bgen", metavar="BGEN", type=str, nargs="+",
-        help="Index a BGEN genotype file format.",
+        help="Index a BGEN genotype file. This requires 'bgenix' to be in the "
+             "PATH.",
     )
     group.add_argument(
         "--legacy", action="store_true",

@@ -30,7 +30,7 @@ import re
 from .readers import plink, impute2, dataframe, bgen, dict_based
 from .core import (Genotypes, Variant, ImputedVariant, SplitChromosomeReader,
                    Chromosome)
-from .extractor import Extractor
+from .extract.extractor import Extractor
 
 try:
     from .version import geneparse_version as __version__

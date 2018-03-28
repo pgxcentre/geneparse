@@ -33,7 +33,7 @@ import numpy as np
 from .test_plink import PLINK_PREFIX
 from .truth import genotypes as truth_genotypes
 from .truth import variants as truth_variants
-from ..extractor import Extractor
+from ..extract.extractor import Extractor
 from ..core import complement_alleles
 from ..readers.plink import PlinkReader
 from ..readers.dict_based import DictBasedReader

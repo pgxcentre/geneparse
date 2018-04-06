@@ -105,7 +105,7 @@ def main():
                 k = np.array([s in keep for s in samples], dtype=bool)
 
             # Writing the VCF header
-            sys.stdout.write(VCF_HEADER.format(
+            args.output.write(VCF_HEADER.format(
                 date=datetime.today().strftime("%Y%m%d"),
                 version=__version__,
                 samples="\t".join(samples[k]),
@@ -126,18 +126,18 @@ def main():
                 print(data.variant.chrom, data.variant.pos, data.variant.name,
                       data.reference, data.coded, ".", "PASS",
                       "AF={}".format(af), "GT:DS", sep="\t", end="",
-                      file=sys.stdout)
+                      file=args.output)
 
                 for geno in genotypes:
                     if np.isnan(geno):
-                        sys.stdout.write("\t./.:.")
+                        args.output.write("\t./.:.")
                     else:
                         rounded_geno = int(round(geno, 0))
-                        sys.stdout.write("\t{}:{}".format(
+                        args.output.write("\t{}:{}".format(
                             VCF_GT_MAP[rounded_geno], geno,
                         ))
 
-                sys.stdout.write("\n")
+                args.output.write("\n")
 
     finally:
         # Closing the output file

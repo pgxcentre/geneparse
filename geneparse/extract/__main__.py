@@ -26,7 +26,6 @@
 # THE SOFTWARE.
 
 
-import sys
 import logging
 import argparse
 from datetime import datetime

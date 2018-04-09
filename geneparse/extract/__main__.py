@@ -26,6 +26,7 @@
 # THE SOFTWARE.
 
 
+import sys
 import logging
 import argparse
 from datetime import datetime
@@ -35,6 +36,8 @@ import numpy as np
 from .. import parsers
 from .. import __version__
 from .extractor import Extractor
+
+from pyplink import PyPlink
 
 
 # Logging configuration
@@ -60,7 +63,9 @@ VCF_GT_MAP = {0: "0/0", 1: "0/1", 2: "1/1"}
 
 
 def main():
+    # Getting and checking the arguments and options
     args = parse_args()
+    check_args(args)
 
     try:
         # We need to clean the parser's arguments
@@ -94,54 +99,19 @@ def main():
             keep = set(args.keep.read().splitlines())
             logger.info("Keeping {:,d} samples".format(len(keep)))
 
+        # The writer
+        writer = None
+        if args.output_format == "vcf":
+            writer = vcf_writer
+        elif args.output_format == "bed":
+            writer = bed_writer
+
         # Executing the extraction
         GenoParser = parsers[args.input_format]
         with GenoParser(**parser_args) as parser:
-            # Getting the samples
-            samples = np.array(parser.get_samples(), dtype=str)
-            k = np.ones_like(samples, dtype=bool)
-            if keep is not None:
-                k = np.array([s in keep for s in samples], dtype=bool)
-
-            # Writing the VCF header
-            args.output.write(VCF_HEADER.format(
-                date=datetime.today().strftime("%Y%m%d"),
-                version=__version__,
-                samples="\t".join(samples[k]),
-            ))
-
-            # The data generator
-            generator = parser
-            if extract is not None:
-                generator = Extractor(parser, names=extract)
-
-            for data in generator.iter_genotypes():
-                # Keeping only the required genotypes
-                genotypes = data.genotypes[k]
-
-                # Computing the alternative allele frequency
-                af = np.nanmean(data.genotypes) / 2
-
-                print(data.variant.chrom, data.variant.pos, data.variant.name,
-                      data.reference, data.coded, ".", "PASS",
-                      "AF={}".format(af), "GT:DS", sep="\t", end="",
-                      file=args.output)
-
-                for geno in genotypes:
-                    if np.isnan(geno):
-                        args.output.write("\t./.:.")
-                    else:
-                        rounded_geno = int(round(geno, 0))
-                        args.output.write("\t{}:{}".format(
-                            VCF_GT_MAP[rounded_geno], geno,
-                        ))
-
-                args.output.write("\n")
+            writer(parser=parser, keep=keep, extract=extract, args=args)
 
     finally:
-        # Closing the output file
-        args.output.close()
-
         # Closing the extract file
         if args.extract is not None:
             args.extract.close()
@@ -149,6 +119,132 @@ def main():
         # Closing the keep file
         if args.keep is not None:
             args.keep.close()
+
+
+def vcf_writer(parser, keep, extract, args):
+    """Writes the data in VCF format."""
+    # The output
+    output = sys.stdout if args.output == "-" else open(args.output, "w")
+
+    try:
+        # Getting the samples
+        samples = np.array(parser.get_samples(), dtype=str)
+        k = _get_sample_select(samples=samples, keep=keep)
+
+        # Writing the VCF header
+        output.write(VCF_HEADER.format(
+            date=datetime.today().strftime("%Y%m%d"),
+            version=__version__,
+            samples="\t".join(samples[k]),
+        ))
+
+        # The data generator
+        generator = _get_generator(parser=parser, extract=extract)
+
+        # The number of markers extracted
+        nb_extracted = 0
+
+        for data in generator.iter_genotypes():
+            # Keeping only the required genotypes
+            genotypes = data.genotypes[k]
+
+            # Computing the alternative allele frequency
+            af = np.nanmean(data.genotypes) / 2
+
+            print(data.variant.chrom, data.variant.pos, data.variant.name,
+                  data.reference, data.coded, ".", "PASS", "AF={}".format(af),
+                  "GT:DS", sep="\t", end="", file=output)
+
+            for geno in genotypes:
+                if np.isnan(geno):
+                    output.write("\t./.:.")
+                else:
+                    rounded_geno = int(round(geno, 0))
+                    output.write("\t{}:{}".format(
+                        VCF_GT_MAP[rounded_geno], geno,
+                    ))
+
+            output.write("\n")
+            nb_extracted += 1
+
+        if nb_extracted == 0:
+            logger.warning("No markers matched the extract list")
+
+    finally:
+        output.close()
+
+
+def bed_writer(parser, keep, extract, args):
+    """Writes BED/BIM/FAM files."""
+    # The output bed and bim file
+    bim_fn = args.output + ".bim"
+    with open(bim_fn, "w") as bim, PyPlink(args.output, "w") as bed:
+        # Getting the samples
+        samples = np.array(parser.get_samples(), dtype=str)
+        k = _get_sample_select(samples=samples, keep=keep)
+
+        # Writing the FAM file
+        with open(args.output + ".fam", "w") as fam:
+            for sample in samples[k]:
+                print(sample, sample, "0", "0", "0", "-1", sep=" ", file=fam)
+
+        # Getting the data generator
+        generator = _get_generator(parser=parser, extract=extract)
+
+        # The number of markers extracted
+        nb_extracted = 0
+
+        for data in generator.iter_genotypes():
+            # Keeping only the required genotypes, changing NaN to -1 and
+            # rounding to get a hard call
+            genotypes = data.genotypes[k]
+            genotypes[np.isnan(genotypes)] = -1
+            genotypes = np.round(genotypes, 0)
+
+            # Writing the genotypes and the BIM file
+            bed.write_genotypes(genotypes)
+            print(data.variant.chrom, data.variant.name, "0", data.variant.pos,
+                  data.coded, data.reference, sep="\t", file=bim)
+            nb_extracted += 1
+
+        if nb_extracted == 0:
+            logger.warning("No markers matched the extract list")
+
+
+def _get_sample_select(samples, keep):
+    """Returns a vector of True/False to keep samples."""
+    k = np.ones_like(samples, dtype=bool)
+    if keep is not None:
+        k = np.array([s in keep for s in samples], dtype=bool)
+        if np.sum(k) == 0:
+            logger.warning("No samples matched the keep list")
+    return k
+
+
+def _get_generator(parser, extract):
+    """Returns the generator (extraction if required)."""
+    if extract is not None:
+            return Extractor(parser, names=extract)
+    else:
+        return parser
+
+
+def check_args(args):
+    """Checks the arguments and options."""
+    # Checking that only VCF can have a - (stdout) as output
+    if args.output_format != "vcf" and args.output == "-":
+        logger.error("{} format cannot be streamed to standard output"
+                     "".format(args.output_format))
+        sys.exit(1)
+
+    # Checking the file extensions
+    if args.output_format == "vcf" and args.output != "-":
+        if not args.output.endswith(".vcf"):
+            args.output += ".vcf"
+
+    elif args.output_format == "bed":
+        if args.output.endswith(".bed"):
+            args.output = args.output[:-4]
 
 
 def parse_args():
@@ -186,8 +282,15 @@ def parse_args():
     # The output options
     group = parser.add_argument_group("Output Options")
     group.add_argument(
-        "-o", "--output", metavar="FILE", type=argparse.FileType("w"),
-        required=True, help="The output file (can be '-' for STDOUT).",
+        "-o", "--output", metavar="FILE", type=str, required=True,
+        help="The output file (can be '-' for STDOUT when using VCF as "
+             "output).",
+    )
+    group.add_argument(
+        "--output-format", metavar="FORMAT", default="vcf", type=str,
+        choices={"vcf", "bed"},
+        help="The output file format. Note that the extension will be added "
+             "if absent.",
     )
 
     return parser.parse_args()

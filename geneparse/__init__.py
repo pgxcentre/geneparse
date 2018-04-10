@@ -27,7 +27,7 @@
 
 import re
 
-from .readers import plink, impute2, dataframe, bgen, dict_based
+from .readers import plink, impute2, dataframe, bgen, dict_based, vcf
 from .core import (Genotypes, Variant, ImputedVariant, SplitChromosomeReader,
                    Chromosome)
 from .extract.extractor import Extractor
@@ -78,6 +78,7 @@ class _SplitChromosomeReaderFactory(object):
 parsers = {
     "plink": plink.PlinkReader,
     "bgen": bgen.BGENReader,
+    "vcf": vcf.VCFReader,
     "chrom-split-plink": _SplitChromosomeReaderFactory(plink.PlinkReader),
     "impute2": impute2.Impute2Reader,
     "chrom-split-impute2": _SplitChromosomeReaderFactory(

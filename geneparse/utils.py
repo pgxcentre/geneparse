@@ -146,3 +146,65 @@ def genotype_to_df(g, samples, as_string=False):
         df.columns = [name]
 
     return df
+
+
+def compute_ld(cur_geno, other_genotypes, r2=False):
+    """Compute LD between a marker and a list of markers.
+
+    Args:
+        cur_geno (Genotypes): The genotypes of the marker.
+        other_genotypes (list): A list of genotypes.
+
+    Returns:
+        numpy.array: An array containing the r or r**2 values between cur_geno
+                     and other_genotypes.
+
+    Note:
+        The genotypes will automatically be normalized using (x - mean) / std.
+
+    """
+    # Normalizing the current genotypes
+    norm_cur = normalize_genotypes(cur_geno)
+
+    # Normalizing and creating the matrix for the other genotypes
+    norm_others = np.stack(
+        tuple(normalize_genotypes(g) for g in other_genotypes),
+        axis=1,
+    )
+
+    # Making sure the size is the same
+    assert norm_cur.shape[0] == norm_others.shape[0]
+
+    # Getting the number of "samples" per marker (taking into account NaN)
+    n = (
+        ~np.isnan(norm_cur.reshape(norm_cur.shape[0], 1)) *
+        ~np.isnan(norm_others)
+    ).sum(axis=0)
+
+    # Computing r (replacing NaN by 0)
+    r = pd.Series(
+        np.dot(
+            np.nan_to_num(norm_cur), np.nan_to_num(norm_others) / n
+        ),
+        index=[g.variant.name for g in other_genotypes],
+        name="r2" if r2 else "r",
+    )
+
+    if r2:
+        return r ** 2
+    else:
+        return r
+
+
+def normalize_genotypes(genotypes):
+    """Normalize the genotypes.
+
+    Args:
+        genotypes (Genotypes): The genotypes to normalize.
+
+    Returns:
+        numpy.array: The normalized genotypes.
+
+    """
+    genotypes = genotypes.genotypes
+    return (genotypes - np.nanmean(genotypes)) / np.nanstd(genotypes)

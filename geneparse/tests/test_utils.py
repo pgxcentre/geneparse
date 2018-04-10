@@ -24,15 +24,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import os
 import random
 import unittest
 
 import numpy as np
 import pandas as pd
 
+from pkg_resources import resource_filename
+
 from ..testing.simulation import simulate_genotypes
 from .. import utils
 from ..core import Variant, Genotypes
+from ..readers.plink import PlinkReader
 
 
 class TestUtils(unittest.TestCase):
@@ -127,3 +131,88 @@ class TestUtils(unittest.TestCase):
 
         self.assertEqual(expected.columns, observed.columns)
         self.assertTrue(expected.equals(observed))
+
+
+class TestUtilsLD(unittest.TestCase):
+    @staticmethod
+    def _read_data(prefix):
+        rs1800775 = None
+        others = []
+        with PlinkReader(prefix) as bed:
+            for data in bed.iter_genotypes():
+                if data.variant.name == "rs1800775":
+                    rs1800775 = data
+                else:
+                    others.append(data)
+
+        return rs1800775, others
+
+    @staticmethod
+    def _read_ld(fn):
+        return pd.read_csv(fn, delim_whitespace=True).set_index(
+            "SNP_B", verify_integrity=True,
+        ).rename(columns={"R2": "expected_r2"}).expected_r2
+
+    def setUp(self):
+        # The prefix of the two datasets
+        prefix = resource_filename(
+            __name__,
+            os.path.join("data", "ld", "common_extracted_1kg"),
+        )
+
+        # Retrieving the two datasets
+        self.rs1800775, self.others = self._read_data(prefix)
+        self.rs1800775_missing, self.others_missing = self._read_data(
+            prefix + ".missing",
+        )
+
+        # The prefix of the two LD files
+        prefix = resource_filename(
+            __name__, os.path.join("data", "ld", "plink_rs1800775_pairs"),
+        )
+
+        # Retrieving the two LD files
+        self.exp_ld = self._read_ld(prefix + ".ld")
+        self.exp_ld_missing = self._read_ld(prefix + ".missing.ld")
+
+    def test_ld_computation(self):
+        # Compute the LD
+        ld_vector = utils.compute_ld(self.rs1800775, self.others, r2=True)
+
+        # Checking the size is appropriate
+        self.assertEqual(ld_vector.shape[0], len(self.others))
+
+        # Checking we have a value for each of the markers
+        self.assertEqual(
+            set(ld_vector.index), {g.variant.name for g in self.others},
+        )
+
+        # Merging with the expected values
+        df = pd.concat((ld_vector, self.exp_ld), axis=1)
+        self.assertEqual(df.shape[0] - 1, ld_vector.shape[0])
+
+        # Computing the square error (should be close to 0)
+        squared_error = np.nanmean((df.r2 - df.expected_r2) ** 2)
+        self.assertAlmostEqual(squared_error, 0)
+
+    def test_ld_computation_with_na_values(self):
+        # Computing the LD
+        ld_vector = utils.compute_ld(
+            self.rs1800775_missing, self.others_missing, r2=True,
+        )
+
+        # Checking the size is appropriate
+        self.assertEqual(ld_vector.shape[0], len(self.others))
+
+        # Checking we have a value for each of the markers
+        self.assertEqual(
+            set(ld_vector.index), {g.variant.name for g in self.others},
+        )
+
+        # Merging with the expected values
+        df = pd.concat((ld_vector, self.exp_ld_missing), axis=1)
+        self.assertEqual(df.shape[0] - 1, ld_vector.shape[0])
+
+        # Computing the square error (should be close to 0)
+        squared_error = np.nanmean((df.r2 - df.expected_r2) ** 2)
+        self.assertAlmostEqual(squared_error, 0, places=5)

@@ -28,6 +28,7 @@
 import urllib
 import json
 import logging
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -38,8 +39,12 @@ from .core import Variant
 logger = logging.getLogger(__name__)
 
 
+warnings.simplefilter("once", DeprecationWarning)
+
+
 def flip_alleles(genotypes):
     """Flip the alleles of an Genotypes instance."""
+    warnings.warn("deprecated: use 'Genotypes.flip_coded'", DeprecationWarning)
     genotypes.reference, genotypes.coded = (genotypes.coded,
                                             genotypes.reference)
     genotypes.genotypes = 2 - genotypes.genotypes
@@ -56,6 +61,7 @@ def code_minor(genotypes):
     value is the number of minor alleles for an individual.
 
     """
+    warnings.warn("deprecated: use 'Genotypes.code_minor'", DeprecationWarning)
     _, minor_coded = maf(genotypes)
     if not minor_coded:
         return flip_alleles(genotypes)
@@ -68,6 +74,7 @@ def maf(genotypes):
     is currently the coded allele.
 
     """
+    warnings.warn("deprecated: use 'Genotypes.maf'", DeprecationWarning)
     g = genotypes.genotypes
     maf = np.nansum(g) / (2 * np.sum(~np.isnan(g)))
     if maf > 0.5:

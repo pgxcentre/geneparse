@@ -27,8 +27,8 @@
 
 import logging
 
-from .core import complement_alleles
-from . import config
+from ..core import complement_alleles
+from .. import config
 
 logger = logging.getLogger(__name__)
 

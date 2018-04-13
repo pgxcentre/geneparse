@@ -36,6 +36,8 @@ VALID_CHROMOSOMES = set(
     [str(i + 1) for i in range(22)] + ["X", "Y", "XY", "MT"]
 )
 
+_NUCLEOTIDE_COMPLEMENT = {"A": "T", "T": "A", "C": "G", "G": "C"}
+
 
 class Chromosome(object):
     __slots__ = ("name")
@@ -222,8 +224,18 @@ class Genotypes(object):
 
     def flip(self):
         """Flips the reference and coded alleles of this instance."""
+        self.flip_coded()
+
+    def flip_coded(self):
+        """Flips the coding of the alleles."""
         self.genotypes = 2 - self.genotypes
         self.reference, self.coded = self.coded, self.reference
+
+    def flip_strand(self):
+        """Flips the strand of the alleles."""
+        self.reference = complement_alleles(self.reference)
+        self.coded = complement_alleles(self.coded)
+        self.variant.complement_alleles()
 
     def maf(self):
         freq = self.coded_freq()
@@ -235,6 +247,20 @@ class Genotypes(object):
     def coded_freq(self):
         """Gets the frequency of the coded allele."""
         return np.nanmean(self.genotypes) / 2
+
+    def code_minor(self):
+        """Encode the genotypes with respect to the minor allele.
+
+        This confirms that "reference" is the major allele and that "coded" is
+        the minor allele.
+
+        In other words, this function can be used to make sure that the
+        genotype value is the number of minor alleles for an individual.
+
+        """
+        coded_freq = self.coded_freq()
+        if coded_freq > 0.5:
+            self.flip_coded()
 
     def __eq__(self, other):
         # If not the same locus, not equals.
@@ -477,7 +503,7 @@ def complement_alleles(s):
 
     """
     trans = str.maketrans("ATGCatgc", "TACGtacg")
-    return s.translate(trans)
+    return s.translate(trans)[::-1]
 
 
 def _np_eq(a, b):

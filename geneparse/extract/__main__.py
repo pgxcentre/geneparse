@@ -252,7 +252,11 @@ def parse_args():
     parser = argparse.ArgumentParser(
         prog="geneparse-extractor",
         description="Genotype file extractor. This tool will extract markers "
-                    "according to names or to genomic locations."
+                    "according to names or to genomic locations.",
+        epilog="The parser arguments (PARSER_ARGS) are the same as the one in "
+               "the API. For example, the arguments for the Plink parser is "
+               "'prefix:PREFIX' (where PREFIX is the prefix of the "
+               "BED/BIM/FAM files).",
     )
 
     # The input file format
@@ -264,7 +268,7 @@ def parse_args():
     )
 
     group.add_argument(
-        nargs="+", dest="parser_args", type=str,
+        nargs="+", dest="parser_args", type=str, metavar="PARSER_ARGS",
         help="The arguments that will be passed to the genotype parsers.",
     )
 

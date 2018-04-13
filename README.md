@@ -26,16 +26,7 @@ systems as well.
 
 ## Installation
 
-Using `pip`:
-
-```bash
-pip install geneparse
-```
-
-
-### Updating
-
-To update the module using `pip`:
+You can install or update `geneparse` using `pip`:
 
 ```bash
 pip install -U geneparse
@@ -49,11 +40,11 @@ To test the module, just perform the following command:
 ```console
 $ python -m geneparse.tests
 .sssss.........s.sssss.........ssssssss...ss.ss...s...................
-..........................................
+.....................................................s....ss.....
 ----------------------------------------------------------------------
-Ran 112 tests in 0.713s
+Ran 135 tests in 1.064s
 
-OK (skipped=24)
+OK (skipped=27)
 ```
 
 
@@ -86,4 +77,48 @@ BGEN index:
                         version 3.8.2. See
                         https://bitbucket.org/gavinband/bgen/wiki/bgenix for
                         more information.
+```
+
+
+## Extraction
+
+We provide a simple tool to extract genotypes from different format to either
+VCF or Binary plink files.
+
+
+```console
+$ python -m geneparse.extract --help
+usage: geneparse-extractor [-h] -f FORMAT [-e FILE] [-k FILE] -o FILE
+                           [--output-format FORMAT]
+                           PARSER_ARGS [PARSER_ARGS ...]
+
+Genotype file extractor. This tool will extract markers according to names or
+to genomic locations.
+
+optional arguments:
+  -h, --help            show this help message and exit
+
+Input Options:
+  -f FORMAT, --format FORMAT
+                        The input file format.
+  PARSER_ARGS           The arguments that will be passed to the genotype
+                        parsers.
+
+Extract Options:
+  -e FILE, --extract FILE
+                        The list of markers to extract (one per line, no
+                        header).
+  -k FILE, --keep FILE  The list of samples to keep (one per line, no header).
+
+Output Options:
+  -o FILE, --output FILE
+                        The output file (can be '-' for STDOUT when using VCF
+                        as output).
+  --output-format FORMAT
+                        The output file format. Note that the extension will
+                        be added if absent.
+
+The parser arguments (PARSER_ARGS) are the same as the one in the API. For
+example, the arguments for the Plink parser is 'prefix:PREFIX' (where PREFIX
+is the prefix of the BED/BIM/FAM files).
 ```

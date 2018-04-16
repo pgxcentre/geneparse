@@ -49,7 +49,8 @@ logging.basicConfig(
 logger = logging.getLogger("geneparse-extractor")
 
 
-VCF_HEADER = """##fileformat=VCFv4.3
+# VCF utilities
+_VCF_HEADER = """##fileformat=VCFv4.3
 ##fileDate={date}
 ##source=geneparseV{version}
 ##INFO=<ID=AF,Number=A,Type=Float,Description="Alternative allele frequency in the initial population">
@@ -57,9 +58,10 @@ VCF_HEADER = """##fileformat=VCFv4.3
 ##FORMAT=<ID=DS,Number=1,Type=Float,Description="Alternate allele dosage">
 #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{samples}
 """
+_VCF_GT_MAP = {0: "0/0", 1: "0/1", 2: "1/1"}
 
 
-VCF_GT_MAP = {0: "0/0", 1: "0/1", 2: "1/1"}
+# Plink utilities
 
 
 def main():
@@ -103,7 +105,7 @@ def main():
         writer = None
         if args.output_format == "vcf":
             writer = vcf_writer
-        elif args.output_format == "bed":
+        elif args.output_format == "plink":
             writer = bed_writer
 
         # Executing the extraction
@@ -132,7 +134,7 @@ def vcf_writer(parser, keep, extract, args):
         k = _get_sample_select(samples=samples, keep=keep)
 
         # Writing the VCF header
-        output.write(VCF_HEADER.format(
+        output.write(_VCF_HEADER.format(
             date=datetime.today().strftime("%Y%m%d"),
             version=__version__,
             samples="\t".join(samples[k]),
@@ -161,7 +163,7 @@ def vcf_writer(parser, keep, extract, args):
                 else:
                     rounded_geno = int(round(geno, 0))
                     output.write("\t{}:{}".format(
-                        VCF_GT_MAP[rounded_geno], geno,
+                        _VCF_GT_MAP[rounded_geno], geno,
                     ))
 
             output.write("\n")
@@ -242,7 +244,7 @@ def check_args(args):
         if not args.output.endswith(".vcf"):
             args.output += ".vcf"
 
-    elif args.output_format == "bed":
+    elif args.output_format == "plink":
         if args.output.endswith(".bed"):
             args.output = args.output[:-4]
 
@@ -292,7 +294,7 @@ def parse_args():
     )
     group.add_argument(
         "--output-format", metavar="FORMAT", default="vcf", type=str,
-        choices={"vcf", "bed"},
+        choices={"vcf", "plink"},
         help="The output file format. Note that the extension will be added "
              "if absent.",
     )

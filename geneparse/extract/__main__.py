@@ -62,6 +62,7 @@ _VCF_GT_MAP = {0: "0/0", 1: "0/1", 2: "1/1"}
 
 
 # Plink utilities
+_PLINK_CHROM_ENCODE = {"X": "23", "Y": "24", "XY": "25", "M": "26", "MT": "26"}
 
 
 def main():
@@ -205,8 +206,12 @@ def bed_writer(parser, keep, extract, args):
 
             # Writing the genotypes and the BIM file
             bed.write_genotypes(genotypes)
-            print(data.variant.chrom, data.variant.name, "0", data.variant.pos,
-                  data.coded, data.reference, sep="\t", file=bim)
+            print(
+                _PLINK_CHROM_ENCODE.get(str(data.variant.chrom),
+                                        data.variant.chrom),
+                data.variant.name, "0", data.variant.pos, data.coded,
+                data.reference, sep="\t", file=bim,
+            )
             nb_extracted += 1
 
         if nb_extracted == 0:

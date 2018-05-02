@@ -113,10 +113,11 @@ Extract Options:
 Output Options:
   -o FILE, --output FILE
                         The output file (can be '-' for STDOUT when using VCF
-                        as output).
+                        or CSV as output format).
   --output-format FORMAT
                         The output file format. Note that the extension will
-                        be added if absent.
+                        be added if absent. Note that CSV is a long format
+                        (hence it might take more disk space).
 
 The parser arguments (PARSER_ARGS) are the same as the one in the API. For
 example, the arguments for the Plink parser is 'prefix:PREFIX' (where PREFIX

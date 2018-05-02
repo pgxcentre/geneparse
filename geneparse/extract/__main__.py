@@ -49,6 +49,10 @@ logging.basicConfig(
 logger = logging.getLogger("geneparse-extractor")
 
 
+# Streamable output
+_streamable_format = {"vcf", "csv"}
+
+
 # VCF utilities
 _VCF_HEADER = """##fileformat=VCFv4.3
 ##fileDate={date}
@@ -108,6 +112,8 @@ def main():
             writer = vcf_writer
         elif args.output_format == "plink":
             writer = bed_writer
+        elif args.output_format == "csv":
+            writer = csv_writer
 
         # Executing the extraction
         GenoParser = parsers[args.input_format]
@@ -168,6 +174,62 @@ def vcf_writer(parser, keep, extract, args):
                     ))
 
             output.write("\n")
+            nb_extracted += 1
+
+        if nb_extracted == 0:
+            logger.warning("No markers matched the extract list")
+
+    finally:
+        output.close()
+
+
+def csv_writer(parser, keep, extract, args):
+    """Writes the data in CSV format."""
+    # The output
+    output = sys.stdout if args.output == "-" else open(args.output, "w")
+
+    try:
+        # Getting the samples
+        samples = np.array(parser.get_samples(), dtype=str)
+        k = _get_sample_select(samples=samples, keep=keep)
+
+        # Writing the CSV header
+        print("sample_id", "variant_id", "chromosome", "position", "reference",
+              "coded", "dosage", "hard_call", sep=",", file=output)
+
+        # The data generator
+        generator = _get_generator(parser=parser, extract=extract)
+
+        # The number of markers extracted
+        nb_extracted = 0
+
+        for data in generator.iter_genotypes():
+            # Keeping only the required genotypes
+            genotypes = data.genotypes[k]
+
+            # The hard call mapping
+            hard_call_mapping = {
+                0: "{ref}/{ref}".format(ref=data.reference),
+                1: "{ref}/{alt}".format(ref=data.reference, alt=data.coded),
+                2: "{alt}/{alt}".format(alt=data.coded),
+            }
+
+            for sample, geno in zip(samples[k], genotypes):
+                # Is the genotype missing
+                is_missing = np.isnan(geno)
+
+                # Hard coding (NaN values are empty string)
+                hard_coded = None
+                if is_missing:
+                    geno = ""
+                    hard_coded = ""
+                else:
+                    hard_coded = hard_call_mapping[int(round(geno, 0))]
+
+                print(sample, data.variant.name, data.variant.chrom,
+                      data.variant.pos, data.reference, data.coded,
+                      geno, hard_coded, sep=",", file=output)
+
             nb_extracted += 1
 
         if nb_extracted == 0:
@@ -239,7 +301,7 @@ def _get_generator(parser, extract):
 def check_args(args):
     """Checks the arguments and options."""
     # Checking that only VCF can have a - (stdout) as output
-    if args.output_format != "vcf" and args.output == "-":
+    if args.output_format not in _streamable_format and args.output == "-":
         logger.error("{} format cannot be streamed to standard output"
                      "".format(args.output_format))
         sys.exit(1)
@@ -294,14 +356,15 @@ def parse_args():
     group = parser.add_argument_group("Output Options")
     group.add_argument(
         "-o", "--output", metavar="FILE", type=str, required=True,
-        help="The output file (can be '-' for STDOUT when using VCF as "
-             "output).",
+        help="The output file (can be '-' for STDOUT when using VCF or CSV as "
+             "output format).",
     )
     group.add_argument(
         "--output-format", metavar="FORMAT", default="vcf", type=str,
-        choices={"vcf", "plink"},
+        choices={"vcf", "plink", "csv"},
         help="The output file format. Note that the extension will be added "
-             "if absent.",
+             "if absent. Note that CSV is a long format (hence it might take "
+             "more disk space).",
     )
 
     return parser.parse_args()

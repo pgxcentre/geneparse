@@ -9,7 +9,7 @@ install:
   - pip install -U pip setuptools
   - pip install -U cython
   - pip install -U numpy
-  - pip install -U pandas
+  - pip install -U pandas $(if [[ "$TRAVIS_PYTHON_VERSION" == "3.4" ]]; then echo "--no-build-isolation"; fi)
   - pip install -U biopython pyplink pybgen cyvcf2
   - pip list
 

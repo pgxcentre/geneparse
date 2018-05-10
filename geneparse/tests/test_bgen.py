@@ -26,6 +26,7 @@
 
 
 import os
+import sys
 import random
 import unittest
 
@@ -111,18 +112,52 @@ class TestBGEN(TestContainer, unittest.TestCase):
 
         v = self.expected_variants[random_variant.name]
         with self.reader_f() as f:
-            g = f.get_variant_genotypes(v)[0]
+            # Getting the results
+            results = f.get_variant_genotypes(v)
+            if v.name in {"RSID_10", "RSID_100"}:
+                # Those have the same location and alleles
+                self.assertEqual(2, len(results))
+            else:
+                # The remaining variants are unique
+                self.assertEqual(1, len(results))
 
-            # Checking the variant
-            self.assertEqual(g.variant, random_variant)
+            for g in results:
+                # Checking the variant is the same
+                self.assertEqual(g.variant, random_variant)
 
-            # Checking the genotypes
-            expected = self.truth["variants"][random_variant.name]
-            self.assertEqual(g.reference, expected["variant"].a1)
-            self.assertEqual(g.coded, expected["variant"].a2)
-            np.testing.assert_array_almost_equal(
-                g.genotypes, expected["data"],
-            )
+                # Checking the genotypes
+                expected = self.truth["variants"][g.variant.name]
+                self.assertEqual(g.reference, expected["variant"].a1)
+                self.assertEqual(g.coded, expected["variant"].a2)
+                np.testing.assert_array_almost_equal(
+                    g.genotypes, expected["data"],
+                )
+
+    def test_get_all_biallelic_variant(self):
+        """Test simplest possible case of variant accession."""
+        for random_variant in self.expected_variants.values():
+            v = self.expected_variants[random_variant.name]
+            with self.reader_f() as f:
+                results = f.get_variant_genotypes(v)
+                if v.name in {"RSID_10", "RSID_100"}:
+                    self.assertEqual(2, len(results))
+                else:
+                    self.assertEqual(1, len(results))
+
+                for g in results:
+                    # Checking the variant is the same
+                    self.assertEqual(g.variant, random_variant)
+
+                    # Checking the genotypes
+                    expected = self.truth["variants"][g.variant.name]
+                    self.assertEqual(g.reference, expected["variant"].a1)
+                    self.assertEqual(g.coded, expected["variant"].a2)
+                    np.testing.assert_array_almost_equal(
+                        g.genotypes, expected["data"],
+                        err_msg="Difference for {}/{}".format(
+                            g.variant.name, random_variant.name,
+                        ),
+                    )
 
     def test_get_na_biallelic_variant(self):
         """Test asking for an unavailable biallelic variant."""

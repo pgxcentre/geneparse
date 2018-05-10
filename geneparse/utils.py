@@ -197,6 +197,10 @@ def compute_ld(cur_geno, other_genotypes, r2=False):
         name="r2" if r2 else "r",
     )
 
+    # Checking no "invalid" values (i.e. < -1 or > 1)
+    r.loc[r > 1] = 1
+    r.loc[r < -1] = -1
+
     if r2:
         return r ** 2
     else:

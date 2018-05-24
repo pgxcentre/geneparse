@@ -148,17 +148,17 @@ def vcf_writer(parser, keep, extract, args):
         ))
 
         # The data generator
-        generator = _get_generator(parser=parser, extract=extract)
+        generator = _get_generator(parser=parser, extract=extract, keep=k)
 
         # The number of markers extracted
         nb_extracted = 0
 
-        for data in generator.iter_genotypes():
+        for data in generator:
             # Keeping only the required genotypes
-            genotypes = data.genotypes[k]
+            genotypes = data.genotypes
 
             # Computing the alternative allele frequency
-            af = np.nanmean(data.genotypes) / 2
+            af = np.nanmean(genotypes) / 2
 
             print(data.variant.chrom, data.variant.pos, data.variant.name,
                   data.reference, data.coded, ".", "PASS", "AF={}".format(af),
@@ -198,14 +198,14 @@ def csv_writer(parser, keep, extract, args):
               "coded", "dosage", "hard_call", sep=",", file=output)
 
         # The data generator
-        generator = _get_generator(parser=parser, extract=extract)
+        generator = _get_generator(parser=parser, extract=extract, keep=k)
 
         # The number of markers extracted
         nb_extracted = 0
 
-        for data in generator.iter_genotypes():
+        for data in generator:
             # Keeping only the required genotypes
-            genotypes = data.genotypes[k]
+            genotypes = data.genotypes
 
             # The hard call mapping
             hard_call_mapping = {
@@ -254,15 +254,15 @@ def bed_writer(parser, keep, extract, args):
                 print(sample, sample, "0", "0", "0", "-1", sep=" ", file=fam)
 
         # Getting the data generator
-        generator = _get_generator(parser=parser, extract=extract)
+        generator = _get_generator(parser=parser, extract=extract, keep=k)
 
         # The number of markers extracted
         nb_extracted = 0
 
-        for data in generator.iter_genotypes():
+        for data in generator:
             # Keeping only the required genotypes, changing NaN to -1 and
             # rounding to get a hard call
-            genotypes = data.genotypes[k]
+            genotypes = data.genotypes
             genotypes[np.isnan(genotypes)] = -1
             genotypes = np.round(genotypes, 0)
 
@@ -290,12 +290,14 @@ def _get_sample_select(samples, keep):
     return k
 
 
-def _get_generator(parser, extract):
-    """Returns the generator (extraction if required)."""
+def _get_generator(parser, extract, keep):
+    """Generates the data (with extract markers and keep, if required."""
     if extract is not None:
-            return Extractor(parser, names=extract)
-    else:
-        return parser
+        parser = Extractor(parser, names=extract)
+
+    for data in parser.iter_genotypes():
+        data.genotypes = data.genotypes[keep]
+        yield data
 
 
 def check_args(args):

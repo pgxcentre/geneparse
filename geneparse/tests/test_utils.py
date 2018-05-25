@@ -188,7 +188,9 @@ class TestUtilsLD(unittest.TestCase):
         )
 
         # Merging with the expected values
-        df = pd.concat((ld_vector, self.exp_ld), axis=1)
+        df = pd.DataFrame(
+            {"r2": ld_vector, "expected_r2": self.exp_ld},
+        )
         self.assertEqual(df.shape[0] - 1, ld_vector.shape[0])
 
         # Computing the square error (should be close to 0)
@@ -210,7 +212,9 @@ class TestUtilsLD(unittest.TestCase):
         )
 
         # Merging with the expected values
-        df = pd.concat((ld_vector, self.exp_ld_missing), axis=1)
+        df = pd.DataFrame(
+            {"r2": ld_vector, "expected_r2": self.exp_ld_missing},
+        )
         self.assertEqual(df.shape[0] - 1, ld_vector.shape[0])
 
         # Computing the square error (should be close to 0)

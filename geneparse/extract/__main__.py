@@ -57,7 +57,7 @@ _streamable_format = {"vcf", "csv"}
 _VCF_HEADER = """##fileformat=VCFv4.3
 ##fileDate={date}
 ##source=geneparseV{version}
-##INFO=<ID=AF,Number=A,Type=Float,Description="Alternative allele frequency in the initial population">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Alternative allele frequency">
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 ##FORMAT=<ID=DS,Number=1,Type=Float,Description="Alternate allele dosage">
 #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{samples}

@@ -39,10 +39,10 @@ To test the module, just perform the following command:
 
 ```console
 $ python -m geneparse.tests
-.sssss.........s.sssss.........ssssssss...ss.ss...s...................
-.....................................................s....ss.....
+..sssss.........s..sssss.........ssssssss...ss.ss...s.................
+.......................................................s....ss.....
 ----------------------------------------------------------------------
-Ran 135 tests in 1.064s
+Ran 137 tests in 1.549s
 
 OK (skipped=27)
 ```
@@ -88,7 +88,7 @@ VCF or Binary plink files.
 
 ```console
 $ python -m geneparse.extract --help
-usage: geneparse-extractor [-h] -f FORMAT [-e FILE] [-k FILE] -o FILE
+usage: geneparse-extractor [-h] -f FORMAT [-e FILE] [-k FILE] [--maf] -o FILE
                            [--output-format FORMAT]
                            PARSER_ARGS [PARSER_ARGS ...]
 
@@ -109,6 +109,8 @@ Extract Options:
                         The list of markers to extract (one per line, no
                         header).
   -k FILE, --keep FILE  The list of samples to keep (one per line, no header).
+  --maf                 Check MAF and flip the allele coding if the MAF is
+                        higher than 50%.
 
 Output Options:
   -o FILE, --output FILE

@@ -61,7 +61,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(df.columns, ["genotypes"])
 
     def test_genotype_to_df_alleles(self):
-        g = simulate_genotypes(0.2, 100, call_rate=1)
+        g = simulate_genotypes(0.4, 100, call_rate=1)
         ref_allele = g.reference
         alt_allele = g.coded
 

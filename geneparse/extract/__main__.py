@@ -148,7 +148,8 @@ def vcf_writer(parser, keep, extract, args):
         ))
 
         # The data generator
-        generator = _get_generator(parser=parser, extract=extract, keep=k)
+        generator = _get_generator(parser=parser, extract=extract, keep=k,
+                                   check_maf=args.maf)
 
         # The number of markers extracted
         nb_extracted = 0
@@ -198,7 +199,8 @@ def csv_writer(parser, keep, extract, args):
               "coded", "dosage", "hard_call", sep=",", file=output)
 
         # The data generator
-        generator = _get_generator(parser=parser, extract=extract, keep=k)
+        generator = _get_generator(parser=parser, extract=extract, keep=k,
+                                   check_maf=args.maf)
 
         # The number of markers extracted
         nb_extracted = 0
@@ -254,7 +256,8 @@ def bed_writer(parser, keep, extract, args):
                 print(sample, sample, "0", "0", "0", "-1", sep=" ", file=fam)
 
         # Getting the data generator
-        generator = _get_generator(parser=parser, extract=extract, keep=k)
+        generator = _get_generator(parser=parser, extract=extract, keep=k,
+                                   check_maf=args.maf)
 
         # The number of markers extracted
         nb_extracted = 0
@@ -290,13 +293,18 @@ def _get_sample_select(samples, keep):
     return k
 
 
-def _get_generator(parser, extract, keep):
+def _get_generator(parser, extract, keep, check_maf):
     """Generates the data (with extract markers and keep, if required."""
     if extract is not None:
         parser = Extractor(parser, names=extract)
 
     for data in parser.iter_genotypes():
         data.genotypes = data.genotypes[keep]
+
+        # Checking the MAF, if required
+        if check_maf:
+            data.code_minor()
+
         yield data
 
 
@@ -352,6 +360,11 @@ def parse_args():
     group.add_argument(
         "-k", "--keep", metavar="FILE", type=argparse.FileType("r"),
         help="The list of samples to keep (one per line, no header).",
+    )
+    group.add_argument(
+        "--maf", action="store_true",
+        help="Check MAF and flip the allele coding if the MAF is higher "
+             "than 50%%.",
     )
 
     # The output options

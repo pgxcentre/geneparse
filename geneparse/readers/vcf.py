@@ -27,12 +27,23 @@
 
 from ..core import Variant, ImputedVariant, Genotypes, GenotypesReader
 
-from cyvcf2 import VCF
 import numpy as np
+
+try:
+    from cyvcf2 import VCF
+    CYVCF2_AVAILABLE = True
+except ImportError:
+    CYVCF2_AVAILABLE = False
 
 
 class VCFReader(GenotypesReader):
     def __init__(self, filename, quality_field=None):
+        if not CYVCF2_AVAILABLE:
+            raise RuntimeError(
+                "cyvcf2 is not installed. Install cyvcf2 (from source or "
+                "using `pip install cyvcf2`) to use the VCF reader."
+            )
+
         self.get_vcf = lambda: VCF(filename)
         self.quality_field = quality_field
 

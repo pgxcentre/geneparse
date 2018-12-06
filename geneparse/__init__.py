@@ -61,6 +61,7 @@ class _SplitChromosomeReaderFactory(object):
 
         # Explode the path for every possible chromosome.
         chrom_to_reader = {}
+        last_exception = None
         for chrom in list(range(1, 23)) + ["X", "Y", "XY", "MT"]:
             chrom = str(chrom)
             cur = re.sub("{chrom}", chrom, pattern)
@@ -69,8 +70,15 @@ class _SplitChromosomeReaderFactory(object):
                 chrom_to_reader[chrom] = self.reader_class(
                     cur, *args, **kwargs
                 )
-            except:
-                pass
+            except Exception as e:
+                last_exception = e
+
+        if len(chrom_to_reader) == 0:
+            raise ValueError(
+                "Could not initialize any genotype reader for chromosomes 1 "
+                "to 22 or X, Y, XY, MT.\nLast exception was: {}."
+                "".format(last_exception)
+            )
 
         return SplitChromosomeReader(chrom_to_reader)
 

@@ -50,6 +50,7 @@ VARIANT_NAME_FIX = {
 }
 
 
+@unittest.skipIf(not vcf.CYVCF2_AVAILABLE, "cyvcf2 is not installed")
 class TestVCF(TestContainer, unittest.TestCase):
     @classmethod
     def setUpClass(cls):

@@ -10,7 +10,8 @@ install:
   - pip install -U cython
   - pip install -U numpy
   - pip install -U pandas $(if [[ "$TRAVIS_PYTHON_VERSION" == "3.4" ]]; then echo "--no-build-isolation"; fi)
-  - pip install -U biopython pyplink pybgen cyvcf2
+  - pip install -U biopython pyplink pybgen
+  - pip install 'cyvcf2<0.10'
   - pip list
 
 script: python setup.py test

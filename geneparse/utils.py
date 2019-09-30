@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 
 from .core import Variant
+from . import parsers
 
 
 logger = logging.getLogger(__name__)
@@ -219,3 +220,23 @@ def normalize_genotypes(genotypes):
     """
     genotypes = genotypes.genotypes
     return (genotypes - np.nanmean(genotypes)) / np.nanstd(genotypes)
+
+
+def add_arguments_to_parser(parser):
+    """Add often used arguments to an argument parser.
+
+    When reading genotype files some command-line arguments are almost
+    systematically used. To avoid rewriting the code, this function adds
+    these arguments to a Python argparse.ArgumentParser instance.
+
+    """
+    parser.add_argument(
+        "--genotypes", "-g",
+        help="The genotypes file."
+    )
+
+    parser.add_argument(
+        "--genotypes-format", "-f",
+        help="The genotypes file format (one of: {})."
+             "".format(", ".join(parsers.keys()))
+    )

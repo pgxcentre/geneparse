@@ -28,7 +28,7 @@
 from pyplink import PyPlink
 import numpy as np
 
-from ..core import GenotypesReader, Variant, Genotypes
+from ..core import GenotypesReader, Variant, Genotypes, UNKNOWN_CHROMOSOME
 from .. import logging
 
 
@@ -41,6 +41,7 @@ CHROM_STR_TO_INT["Unknown"] = 0  # TODO What is plink chromosome 0?
 
 
 CHROM_INT_TO_STR = {v: k for k, v in CHROM_STR_TO_INT.items()}
+CHROM_INT_TO_STR[0] = UNKNOWN_CHROMOSOME
 
 
 class PlinkReader(GenotypesReader):

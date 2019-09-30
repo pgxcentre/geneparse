@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 
 from .core import Variant
+from . import parsers
 
 
 logger = logging.getLogger(__name__)
@@ -219,3 +220,68 @@ def normalize_genotypes(genotypes):
     """
     genotypes = genotypes.genotypes
     return (genotypes - np.nanmean(genotypes)) / np.nanstd(genotypes)
+
+
+def add_arguments_to_parser(parser):
+    """Add often used arguments to an argument parser.
+
+    When reading genotype files some command-line arguments are almost
+    systematically used. To avoid rewriting the code, this function adds
+    these arguments to a Python argparse.ArgumentParser instance.
+
+    Eventually, a well-formed reader can be constructed using this pattern:
+
+        reader = geneparse.parsers[args.genotypes_format](
+            args.genotypes,
+            **geneparse.utils.parse_kwargs(args.genotypes_kwargs)
+        )
+
+    """
+    parser.add_argument(
+        "--genotypes", "-g",
+        help="The genotypes file."
+    )
+
+    parser.add_argument(
+        "--genotypes-format", "-f",
+        help="The genotypes file format (one of: {})."
+             "".format(", ".join(parsers.keys()))
+    )
+
+    parser.add_argument(
+        "--genotypes-kwargs", "-kw",
+        help="Keyword arguments to pass to the genotypes container. "
+             "A string of the following format is expected: "
+             "'key1=value1,key2=value2,...It is also possible to prefix"
+             "the values by 'int:' or 'float:' to cast the them before "
+             "passing them to the constructor."
+    )
+
+
+def parse_kwargs(s):
+    """Parse command line arguments into Python arguments for parsers.
+
+    Converts an arguments string of the form: key1=value1,key2=value2 into
+    a dict of arguments that can be passed to Python initializers.
+
+    This function also understands type prefixes and will cast values prefixed
+    with 'int:' or 'float:'. For example magic_number=int:4 will be converted
+    to {"magic_number": 4}.
+
+    """
+    if s is None:
+        return {}
+
+    kwargs = {}
+    for argument in s.split(","):
+        key, value = argument.strip().split("=")
+
+        if value.startswith("int:"):
+            value = int(value[4:])
+
+        elif value.startswith("float:"):
+            value = float(value[6:])
+
+        kwargs[key] = value
+
+    return kwargs

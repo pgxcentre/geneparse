@@ -208,6 +208,38 @@ def compute_ld(cur_geno, other_genotypes, r2=False):
         return r
 
 
+def compute_ld_matrix(genotypes, r2=False):
+    """Compute the pairwise LD matrix from a genotype matrix.
+
+    Args:
+        genotypes (numpy.array): An m x n matrix of m samples and n variants.
+        r2 (bool): Whether to return the r or r2.
+
+    Returns:
+        numpy.array: The n x n LD matrix.
+
+    """
+    ns = (~np.isnan(genotypes)).astype(int)
+    ns = np.dot(ns.T, ns)
+
+    # Standardize the genotypes.
+    g_std = (
+        (genotypes - np.nanmean(genotypes, axis = 0)) /
+        np.nanstd(genotypes, axis = 0)
+    )
+
+    g_std[np.isnan(g_std)] = 0
+
+    # Compute the LD.
+    # i,j needs to be divided by n_samples i and j
+    r = np.dot(g_std.T, g_std) / ns
+
+    if r2:
+        return r ** 2
+    else:
+        return r
+
+
 def normalize_genotypes(genotypes):
     """Normalize the genotypes.
 

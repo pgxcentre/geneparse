@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 
 from .core import Variant
+from . import parsers
 
 
 logger = logging.getLogger(__name__)
@@ -207,6 +208,38 @@ def compute_ld(cur_geno, other_genotypes, r2=False):
         return r
 
 
+def compute_ld_matrix(genotypes, r2=False):
+    """Compute the pairwise LD matrix from a genotype matrix.
+
+    Args:
+        genotypes (numpy.array): An m x n matrix of m samples and n variants.
+        r2 (bool): Whether to return the r or r2.
+
+    Returns:
+        numpy.array: The n x n LD matrix.
+
+    """
+    ns = (~np.isnan(genotypes)).astype(int)
+    ns = np.dot(ns.T, ns)
+
+    # Standardize the genotypes.
+    g_std = (
+        (genotypes - np.nanmean(genotypes, axis = 0)) /
+        np.nanstd(genotypes, axis = 0)
+    )
+
+    g_std[np.isnan(g_std)] = 0
+
+    # Compute the LD.
+    # i,j needs to be divided by n_samples i and j
+    r = np.dot(g_std.T, g_std) / ns
+
+    if r2:
+        return r ** 2
+    else:
+        return r
+
+
 def normalize_genotypes(genotypes):
     """Normalize the genotypes.
 
@@ -219,3 +252,68 @@ def normalize_genotypes(genotypes):
     """
     genotypes = genotypes.genotypes
     return (genotypes - np.nanmean(genotypes)) / np.nanstd(genotypes)
+
+
+def add_arguments_to_parser(parser):
+    """Add often used arguments to an argument parser.
+
+    When reading genotype files some command-line arguments are almost
+    systematically used. To avoid rewriting the code, this function adds
+    these arguments to a Python argparse.ArgumentParser instance.
+
+    Eventually, a well-formed reader can be constructed using this pattern:
+
+        reader = geneparse.parsers[args.genotypes_format](
+            args.genotypes,
+            **geneparse.utils.parse_kwargs(args.genotypes_kwargs)
+        )
+
+    """
+    parser.add_argument(
+        "--genotypes", "-g",
+        help="The genotypes file."
+    )
+
+    parser.add_argument(
+        "--genotypes-format", "-f",
+        help="The genotypes file format (one of: {})."
+             "".format(", ".join(parsers.keys()))
+    )
+
+    parser.add_argument(
+        "--genotypes-kwargs", "-kw",
+        help="Keyword arguments to pass to the genotypes container. "
+             "A string of the following format is expected: "
+             "'key1=value1,key2=value2,...It is also possible to prefix"
+             "the values by 'int:' or 'float:' to cast the them before "
+             "passing them to the constructor."
+    )
+
+
+def parse_kwargs(s):
+    """Parse command line arguments into Python arguments for parsers.
+
+    Converts an arguments string of the form: key1=value1,key2=value2 into
+    a dict of arguments that can be passed to Python initializers.
+
+    This function also understands type prefixes and will cast values prefixed
+    with 'int:' or 'float:'. For example magic_number=int:4 will be converted
+    to {"magic_number": 4}.
+
+    """
+    if s is None:
+        return {}
+
+    kwargs = {}
+    for argument in s.split(","):
+        key, value = argument.strip().split("=")
+
+        if value.startswith("int:"):
+            value = int(value[4:])
+
+        elif value.startswith("float:"):
+            value = float(value[6:])
+
+        kwargs[key] = value
+
+    return kwargs

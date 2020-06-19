@@ -27,17 +27,18 @@
 
 
 import sys
+import errno
 import logging
 import argparse
 from datetime import datetime
 
 import numpy as np
 
+from pyplink import PyPlink
+
 from .. import parsers
 from .. import __version__
 from .extractor import Extractor
-
-from pyplink import PyPlink
 
 
 # Logging configuration
@@ -119,6 +120,11 @@ def main():
         GenoParser = parsers[args.input_format]
         with GenoParser(**parser_args) as parser:
             writer(parser=parser, keep=keep, extract=extract, args=args)
+
+    except IOError as exception:
+        # A SIGPIPE error (using head?)
+        if exception.errno == errno.EPIPE:
+            pass
 
     finally:
         # Closing the extract file

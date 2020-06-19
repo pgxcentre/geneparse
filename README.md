@@ -10,7 +10,7 @@ format (*e.g.* Plink binary files, IMPUTE2 files, BGEN and VCF).
 
 ## Dependencies
 
-The tool requires a standard [Python](http://python.org/) installation (3.4 or
+The tool requires a standard [Python](http://python.org/) installation (3.6 or
 higher are supported) with the following modules:
 
 1. [numpy](http://www.numpy.org/)

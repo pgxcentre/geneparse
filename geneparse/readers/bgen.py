@@ -32,8 +32,6 @@ from ..core import GenotypesReader, Genotypes, Variant
 
 
 CHROM_STR_ENCODE = {"0{}".format(chrom): str(chrom) for chrom in range(1, 10)}
-CHROM_STR_ENCODE["23"] = "X"
-CHROM_STR_ENCODE["24"] = "Y"
 
 CHROM_STR_DECODE = {v: k for k, v in CHROM_STR_ENCODE.items()}
 

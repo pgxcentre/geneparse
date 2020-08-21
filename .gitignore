@@ -9,3 +9,5 @@ test
 
 build
 dist
+
+.tox

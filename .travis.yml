@@ -7,11 +7,6 @@ python:
 
 install:
   - pip install -U pip setuptools
-  - pip install -U cython
-  - pip install -U numpy
-  - pip install -U pandas $(if [[ "$TRAVIS_PYTHON_VERSION" == "3.4" ]]; then echo "--no-build-isolation"; fi)
-  - pip install -U biopython pyplink pybgen
-  - pip install 'cyvcf2<0.10'
-  - pip list
+  - pip install -U tox tox-venv tox-travis
 
-script: python setup.py test
+script: tox

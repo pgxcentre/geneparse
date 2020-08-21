@@ -34,7 +34,6 @@ try:
     CYVCF2_AVAILABLE = True
 except ImportError:
     CYVCF2_AVAILABLE = False
-    raise
 
 
 class VCFReader(GenotypesReader):

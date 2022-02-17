@@ -81,19 +81,28 @@ def match_genotype_iterators(a: Iterable[Genotypes], b: Iterable[Genotypes]
     # Iterate over the smallest variant.
     cur_a = q_a.get()
     cur_b = q_b.get()
-    while cur_a is not None and cur_b is not None:
+    stop = False
+    while not stop:
         # Iterate the last iterator until it's not last anymore.
         while compare_variants(cur_a.variant, cur_b.variant) == -1:
             # Means that B is before A.
             cur_b = q_b.get()
             if cur_b is None:
+                stop = True
                 break
+
+        if stop:
+            break
 
         while compare_variants(cur_a.variant, cur_b.variant) == 1:
             # Means that A is before B.
             cur_a = q_a.get()
             if cur_a is None:
+                stop = True
                 break
+
+        if stop:
+            break
 
         # Either variants match or same locus, different alleles.
         if cur_a.variant == cur_b.variant:
@@ -102,6 +111,9 @@ def match_genotype_iterators(a: Iterable[Genotypes], b: Iterable[Genotypes]
             cur_b = q_b.get()
         else:
             cur_a = q_a.get()  # Advance one iterator to match later.
+
+        if cur_a is None or cur_b is None:
+            stop = True
 
     for p in processes:
         p.join()

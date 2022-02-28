@@ -1,5 +1,5 @@
 [![PyPI version](https://badge.fury.io/py/geneparse.svg)](http://badge.fury.io/py/geneparse)
-[![Build Status](https://travis-ci.org/pgxcentre/geneparse.svg?branch=master)](https://travis-ci.org/pgxcentre/geneparse)
+[![Build Status](https://github.com/pgxcentre/geneparse/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/pgxcentre/geneparse/actions)
 
 
 # geneparse - Module to parse genetics data file

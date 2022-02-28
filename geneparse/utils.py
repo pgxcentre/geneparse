@@ -29,6 +29,7 @@ import urllib
 import json
 import logging
 import warnings
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -83,6 +84,25 @@ def maf(genotypes):
         return maf, False
 
     return maf, True
+
+
+def variants_to_df(variants: List[Variant],
+                   make_id: bool = False) -> pd.DataFrame:
+    """Create a pandas dataframe from a list of variants."""
+    df = pd.DataFrame.from_records(
+        [
+            (v.name, v.chrom, v.pos, v.alleles[0], v.alleles[1])
+            for v in variants
+        ],
+        columns=["name", "chrom", "pos", "allele1", "allele2"]
+    )
+
+    # ID that can be used for fast joining.
+    if make_id:
+        meta = df.drop(columns="name").astype(str)
+        df["geneparse_id"] = meta.agg("-".join, axis=1)
+
+    return df
 
 
 def rsids_to_variants(li):

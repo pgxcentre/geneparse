@@ -1,9 +1,9 @@
 [run]
+source = geneparse
 branch = True
-include = geneparse*
 
 [report]
-exclude_lines = 
+exclude_lines =
     pragma: no cover
 
 [html]

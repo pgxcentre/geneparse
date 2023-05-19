@@ -131,11 +131,11 @@ class Impute2Reader(GenotypesReader):
                 }
 
                 # Logging a warning
-                logging.found_duplicates(duplicated_marker_counts.iteritems())
+                logging.found_duplicates(duplicated_marker_counts.items())
 
                 # Renaming the markers
                 counter = Counter()
-                for i, marker in duplicated_markers.iteritems():
+                for i, marker in duplicated_markers.items():
                     counter[marker] += 1
                     new_name = "{}:dup{}".format(marker, counter[marker])
                     self._impute2_index.loc[i, "name"] = new_name

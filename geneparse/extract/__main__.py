@@ -27,6 +27,7 @@
 
 
 import sys
+import csv
 import errno
 import logging
 import argparse
@@ -115,6 +116,8 @@ def main():
             writer = bed_writer
         elif args.output_format == "csv":
             writer = csv_writer
+        elif args.output_format == "report":
+            writer = report_writer
 
         # Executing the extraction
         GenoParser = parsers[args.input_format]
@@ -134,6 +137,53 @@ def main():
         # Closing the keep file
         if args.keep is not None:
             args.keep.close()
+
+
+def report_writer(parser, keep, extract, args):
+    """Writer/extractor that only creates a summary report."""
+    output = sys.stdout if args.output == "-" else open(args.output, "w")
+    csv_writer = csv.writer(output)
+
+    try:
+        csv_writer.writerow(
+            ["id", "chrom", "pos", "non_coded_allele", "coded_allele",
+             "coded_frequency", "maf"]
+        )
+
+        # Getting the samples
+        samples = np.array(parser.get_samples(), dtype=str)
+        k = _get_sample_select(samples=samples, keep=keep)
+
+        # The data generator
+        generator = _get_generator(parser=parser, extract=extract, keep=k,
+                                   check_maf=args.maf)
+
+        # The number of markers extracted
+        nb_extracted = 0
+
+        for data in generator:
+            non_coded_allele = data.reference
+            coded_allele = data.coded
+            freq = data.coded_freq()
+            maf = min(freq, 1 - freq)
+
+            csv_writer.writerow([
+                data.variant.name,
+                str(data.variant.chrom),
+                str(data.variant.pos),
+                non_coded_allele,
+                coded_allele,
+                str(freq),
+                str(maf)
+            ])
+
+            nb_extracted += 1
+
+        if nb_extracted == 0:
+            logger.warning("No markers matched the extract list")
+
+    finally:
+        output.close()
 
 
 def vcf_writer(parser, keep, extract, args):
@@ -382,7 +432,7 @@ def parse_args():
     )
     group.add_argument(
         "--output-format", metavar="FORMAT", default="vcf", type=str,
-        choices={"vcf", "plink", "csv"},
+        choices={"vcf", "plink", "csv", "report"},
         help="The output file format. Note that the extension will be added "
              "if absent. Note that CSV is a long format (hence it might take "
              "more disk space).",
